@@ -12,7 +12,7 @@ export default function HomeScreen() {
   const contacts = useAppStore((state) => state.contacts);
   const events = useAppStore((state) => state.events);
   const currentEventId = useAppStore((state) => state.currentEventId);
-  const aiEnabled = useAppStore((state) => state.aiEnabled);
+  const localToolsEnabled = useAppStore((state) => state.localToolsEnabled);
   const [query, setQuery] = useState("");
   const event = events.find((item) => item.id === currentEventId);
   const isWide = width >= 780;
@@ -75,7 +75,7 @@ export default function HomeScreen() {
           <Card style={[styles.eventCard, isWide && styles.eventCardWide]}>
             <View style={styles.eventTopline}>
               <Pill tone="safe">Active event</Pill>
-              <Pill tone={aiEnabled ? "safe" : "neutral"}>{aiEnabled ? "Smart drafts on" : "Manual notes"}</Pill>
+              <Pill tone={localToolsEnabled ? "safe" : "neutral"}>{localToolsEnabled ? "Local drafts on" : "Manual notes"}</Pill>
             </View>
             <Text style={styles.eventName}>{event.name}</Text>
             <Text style={styles.eventMeta}>{displayDate(event.startsAt)} · {event.locationLabel ?? "Location not stored"}</Text>

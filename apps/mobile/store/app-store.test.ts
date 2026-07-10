@@ -24,7 +24,7 @@ beforeEach(() => {
     hydrated: true,
     hydrationError: null,
     hasSeenOnboarding: false,
-    aiEnabled: false,
+    localToolsEnabled: false,
     currentEventId: "",
     contacts: [],
     events: [],
@@ -32,6 +32,17 @@ beforeEach(() => {
 });
 
 describe("workspace lifecycle", () => {
+  it("migrates the former AI preference into local smart tools", async () => {
+    const migrate = useAppStore.persist.getOptions().migrate;
+    expect(migrate).toBeTypeOf("function");
+    const migrated = await migrate?.({ aiEnabled: true }, 0) as {
+      aiEnabled?: boolean;
+      localToolsEnabled?: boolean;
+    };
+    expect(migrated.localToolsEnabled).toBe(true);
+    expect(migrated.aiEnabled).toBeUndefined();
+  });
+
   it("starts empty unless the user chooses the sample workspace", () => {
     useAppStore.getState().completeOnboarding(false, false);
     expect(useAppStore.getState().contacts).toEqual([]);
@@ -40,7 +51,7 @@ describe("workspace lifecycle", () => {
     useAppStore.getState().completeOnboarding(true, true);
     expect(useAppStore.getState().contacts).toHaveLength(seededContacts.length);
     expect(useAppStore.getState().events).toHaveLength(seededEvents.length);
-    expect(useAppStore.getState().aiEnabled).toBe(true);
+    expect(useAppStore.getState().localToolsEnabled).toBe(true);
   });
 
   it("adds a person to the active event", () => {

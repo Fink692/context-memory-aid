@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  createRuleBasedMemoryDraft,
+  createLocalConversationTopics,
+  createLocalMemoryDraft,
   evaluateFaceMatch,
   filterEventCandidates,
   parseAttendeeCsv,
   seededContacts,
   seededEvents,
 } from "./index";
-import { createRuleBasedMemoryDraft as createVercelMemoryDraft } from "./vercel";
 
 describe("event-bounded matching", () => {
   it("excludes saved contacts who are not attending", () => {
@@ -65,13 +65,20 @@ describe("CSV import", () => {
   });
 });
 
-describe("rules fallback", () => {
-  it("stays identical in the app and Vercel entry points", () => {
+describe("local intelligence", () => {
+  it("creates a useful draft without a network service", () => {
     const transcript =
       "Alex accepted a new job in New York and is hiring AI engineers.";
+    const draft = createLocalMemoryDraft(transcript);
+    expect(draft.summary).toContain("New York");
+    expect(draft.suggestedTags).toEqual(expect.arrayContaining(["career", "hiring", "location"]));
+    expect(draft.suggestedFollowUps).toContain("Offer a relevant introduction");
+  });
 
-    expect(createVercelMemoryDraft(transcript)).toEqual(
-      createRuleBasedMemoryDraft(transcript),
-    );
+  it("derives bounded prompts from saved local context", () => {
+    const topics = createLocalConversationTopics(seededContacts[0]!, seededEvents[0]);
+    expect(topics).toHaveLength(4);
+    expect(topics[0]).toContain("Promoted to Engineering Manager");
+    expect(topics.every((topic) => topic.length <= 160)).toBe(true);
   });
 });

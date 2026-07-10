@@ -2,7 +2,7 @@
   "expo": {
     "name": "Context — Relationship Memory",
     "slug": "context-memory-aid",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "scheme": "context",
@@ -15,12 +15,6 @@
           "cameraPermission": "Context uses the camera only while you scan an event badge. Camera frames are not stored.",
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
-        }
-      ],
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "Context records only when you tap Add Memory. Audio is deleted after transcription."
         }
       ],
       "expo-secure-store",
@@ -41,10 +35,7 @@
     "android": {
       "package": "com.hackathon.contextmemory",
       "allowBackup": false,
-      "permissions": [
-        "CAMERA",
-        "RECORD_AUDIO"
-      ]
+      "permissions": ["CAMERA"]
     },
     "web": {
       "bundler": "metro",

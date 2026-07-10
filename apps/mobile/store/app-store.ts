@@ -21,13 +21,13 @@ interface AppState {
   hydrated: boolean;
   hydrationError: string | null;
   hasSeenOnboarding: boolean;
-  aiEnabled: boolean;
+  localToolsEnabled: boolean;
   currentEventId: string;
   contacts: Contact[];
   events: Event[];
   setHydrated: (value: boolean) => void;
-  completeOnboarding: (aiEnabled: boolean, loadSample: boolean) => void;
-  setAiEnabled: (value: boolean) => void;
+  completeOnboarding: (localToolsEnabled: boolean, loadSample: boolean) => void;
+  setLocalToolsEnabled: (value: boolean) => void;
   setCurrentEventId: (eventId: string) => void;
   addEvent: (event: Event) => void;
   updateEvent: (eventId: string, updates: Partial<Omit<Event, "id" | "attendeeContactIds">>) => void;
@@ -71,15 +71,15 @@ export const useAppStore = create<AppState>()(
       hydrated: false,
       hydrationError: null,
       hasSeenOnboarding: false,
-      aiEnabled: false,
+      localToolsEnabled: false,
       currentEventId: "",
       contacts: [],
       events: [],
       setHydrated: (hydrated) => set({ hydrated }),
-      completeOnboarding: (aiEnabled, loadSample) =>
+      completeOnboarding: (localToolsEnabled, loadSample) =>
         set((state) => ({
           hasSeenOnboarding: true,
-          aiEnabled,
+          localToolsEnabled,
           ...(loadSample && state.contacts.length === 0 && state.events.length === 0
             ? {
                 contacts: seededContacts,
@@ -88,7 +88,7 @@ export const useAppStore = create<AppState>()(
               }
             : {}),
         })),
-      setAiEnabled: (aiEnabled) => set({ aiEnabled }),
+      setLocalToolsEnabled: (localToolsEnabled) => set({ localToolsEnabled }),
       setCurrentEventId: (eventId) => {
         if (get().events.some((event) => event.id === eventId)) {
           set({ currentEventId: eventId });
@@ -262,7 +262,7 @@ export const useAppStore = create<AppState>()(
           contacts: [],
           events: [],
           currentEventId: "",
-          aiEnabled: false,
+          localToolsEnabled: false,
           hasSeenOnboarding: false,
           hydrationError: null,
         }),
@@ -279,11 +279,23 @@ export const useAppStore = create<AppState>()(
       skipHydration: true,
       partialize: (state) => ({
         hasSeenOnboarding: state.hasSeenOnboarding,
-        aiEnabled: state.aiEnabled,
+        localToolsEnabled: state.localToolsEnabled,
         currentEventId: state.currentEventId,
         contacts: state.contacts,
         events: state.events,
       }),
+      version: 1,
+      migrate: (persisted, version) => {
+        const legacy = persisted as Partial<AppState> & { aiEnabled?: boolean };
+        if (version === 0) {
+          const { aiEnabled, ...rest } = legacy;
+          return {
+            ...rest,
+            localToolsEnabled: aiEnabled ?? false,
+          } as AppState;
+        }
+        return legacy as AppState;
+      },
     },
   ),
 );

@@ -8,16 +8,16 @@ import { useAppStore } from "@/store/app-store";
 const promises = [
   { number: "01", title: "Your network only", body: "Context only considers people you saved and attendees in the event you selected." },
   { number: "02", title: "The camera stays deliberate", body: "Context opens it only for event badge scanning. Frames are never saved or sent for identity search." },
-  { number: "03", title: "You approve every memory", body: "Smart tools create an editable draft. Nothing enters the timeline until you confirm it." },
+  { number: "03", title: "Local and reviewable", body: "On-device rules create an editable draft. Nothing enters the timeline until you confirm it." },
 ];
 
 export default function OnboardingScreen() {
-  const [aiEnabled, setAiEnabled] = useState(false);
+  const [localToolsEnabled, setLocalToolsEnabled] = useState(true);
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
   const router = useRouter();
 
   const finish = (loadSample: boolean) => {
-    completeOnboarding(aiEnabled, loadSample);
+    completeOnboarding(localToolsEnabled, loadSample);
     router.replace("/home");
   };
 
@@ -44,20 +44,20 @@ export default function OnboardingScreen() {
         ))}
       </View>
 
-      <Card style={styles.aiCard}>
+      <Card style={styles.localCard}>
         <View style={styles.switchRow}>
           <View style={styles.switchCopy}>
-            <Text style={styles.switchTitle}>Enable smart memory tools</Text>
+            <Text style={styles.switchTitle}>Enable local smart tools</Text>
             <Text style={styles.switchBody}>
-              Sends your note and the selected person’s saved profile to the configured API only when you request a draft. Matching data is never sent.
+              Creates editable drafts with deterministic rules on this device. No account, subscription, API key, or internet connection is required.
             </Text>
           </View>
           <Switch
-            accessibilityLabel="Enable smart memory tools"
-            value={aiEnabled}
-            onValueChange={setAiEnabled}
+            accessibilityLabel="Enable local smart tools"
+            value={localToolsEnabled}
+            onValueChange={setLocalToolsEnabled}
             trackColor={{ false: colors.border, true: "#A7F3D0" }}
-            thumbColor={aiEnabled ? colors.success : colors.surface}
+            thumbColor={localToolsEnabled ? colors.success : colors.surface}
           />
         </View>
       </Card>
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   promiseCopy: { flex: 1, gap: spacing.xs },
   promiseTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
   promiseBody: { color: colors.inkMuted, fontSize: 14, lineHeight: 20 },
-  aiCard: { backgroundColor: "#F0EFFF", borderColor: "#D9D6FE" },
+  localCard: { backgroundColor: "#F0EFFF", borderColor: "#D9D6FE" },
   switchRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
   switchCopy: { flex: 1, gap: spacing.xs },
   switchTitle: { color: colors.ink, fontSize: 16, fontWeight: "800" },

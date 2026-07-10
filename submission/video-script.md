@@ -8,4 +8,4 @@
 | 42–58s | Relationship profile and memory editor | “Recover the story, then save a note directly or review an editable smart draft.” |
 | 58–75s | Privacy controls and pitch slide 5 | “Context is a memory prosthetic for relationships—built to help us show up better for people we already know.” |
 
-Keep claims aligned with the build: QR badges and manual directory are production behavior; biometric inference is a gated future integration. Rules mode supports typed drafts, while voice requires OpenAI mode.
+Keep claims aligned with the build: QR badges and manual directory are production behavior; biometric inference is a gated future integration. Typed drafts use bundled deterministic rules, all relationship data stays local, and runtime API cost is zero.

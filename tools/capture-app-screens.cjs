@@ -29,7 +29,6 @@ const shots = [
   await page.evaluate(() => document.fonts?.ready);
   await page.screenshot({ path: path.join(outputDir, "app-1-onboarding.png"), fullPage: false });
 
-  await page.getByLabel("Enable smart memory tools").click();
   await page.getByText("Explore with sample people").click();
   await page.getByText("Walk in already remembering.").waitFor();
 

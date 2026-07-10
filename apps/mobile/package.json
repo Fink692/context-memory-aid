@@ -1,6 +1,6 @@
 {
   "name": "@context/mobile",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -17,15 +17,10 @@
   "dependencies": {
     "@context/shared": "*",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@tanstack/react-query": "^5.90.21",
     "expo": "~57.0.4",
-    "expo-audio": "~57.0.0",
     "expo-camera": "~57.0.1",
-    "expo-constants": "~57.0.3",
-    "expo-crypto": "~57.0.0",
     "expo-document-picker": "~57.0.0",
     "expo-file-system": "~57.0.0",
-    "expo-linking": "~57.0.2",
     "expo-router": "~57.0.4",
     "expo-secure-store": "~57.0.0",
     "expo-sharing": "~57.0.3",
@@ -40,6 +35,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@types/node": "^22.19.15",
     "@types/react": "^19.2.14",
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { useRouter } from "expo-router";
 import { parseAttendeeCsv, type ImportContact } from "@context/shared";
 import { Body, Button, Card, EmptyState, ErrorBanner, Pill, Screen, SuccessBanner } from "@/components/ui";
@@ -32,7 +33,9 @@ export default function ImportScreen() {
         setErrors(["CSV must be smaller than 1 MB."]);
         return;
       }
-      const text = await (await fetch(asset.uri)).text();
+      const text = Platform.OS === "web"
+        ? await (await fetch(asset.uri)).text()
+        : await FileSystem.readAsStringAsync(asset.uri);
       const parsed = parseAttendeeCsv(text);
       setFilename(asset.name);
       setPreview(parsed.contacts);

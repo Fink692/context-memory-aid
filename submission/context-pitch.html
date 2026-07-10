@@ -4,9 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Context — OpenAI Hackathon Pitch</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     /* === THEME: VINTAGE EDITORIAL MEETS PRECISE PRODUCT UI === */
     :root {
@@ -19,8 +16,8 @@
       --mint: #b8ead5;
       --gold: #f2ca65;
       --line: #d8d1c3;
-      --font-display: "Fraunces", Georgia, serif;
-      --font-body: "Work Sans", sans-serif;
+      --font-display: Georgia, "Times New Roman", serif;
+      --font-body: Arial, Helvetica, sans-serif;
       --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
       --duration-normal: 0.65s;
       --title-size: clamp(2.2rem, 6vw, 5.7rem);
@@ -445,7 +442,7 @@
           <div class="steps">
             <div class="step reveal"><span class="step-no">1</span><div><h3>Select the event</h3><p>Only saved contacts on that attendee list are candidates.</p></div></div>
             <div class="step reveal"><span class="step-no">2</span><div><h3>Find the person</h3><p>Browse the event directory or scan an event-bounded Context badge.</p></div></div>
-            <div class="step reveal"><span class="step-no">3</span><div><h3>Confirm the memory</h3><p>Save a note directly or request a smart draft. You edit and approve every fact.</p></div></div>
+            <div class="step reveal"><span class="step-no">3</span><div><h3>Confirm the memory</h3><p>Save a note directly or create a local draft. You edit and approve every detail.</p></div></div>
           </div>
         </div>
         <div class="profile-card reveal">
@@ -464,11 +461,11 @@
       <div class="slide-no">04 / 05</div>
       <div class="slide-content">
         <p class="eyebrow reveal">The trust boundary is the product</p>
-        <h2 class="reveal">Identity stays local.<br>Intelligence stays minimal.</h2>
+        <h2 class="reveal">Identity and intelligence<br>stay local.</h2>
         <div class="trust-flow reveal">
           <div class="trust-node local"><span class="node-label">On device</span><h3>Event + saved contacts</h3><p>Directory, QR badge checks, notes, memories, and data controls stay with the user.</p></div>
           <div class="arrow">→</div>
-          <div class="trust-node"><span class="node-label">Memory API</span><h3>Selected context only</h3><p>One note and one selected profile become a strict draft only when requested.</p></div>
+          <div class="trust-node"><span class="node-label">Bundled rules</span><h3>On-device drafting</h3><p>Deterministic TypeScript organizes one typed note without an account, API key, or network request.</p></div>
           <div class="arrow">→</div>
           <div class="trust-node confirm"><span class="node-label">Human control</span><h3>Edit, confirm, save</h3><p>No inferred fact reaches the timeline without an explicit tap.</p></div>
         </div>
@@ -478,7 +475,7 @@
           <div class="never">Never upload face data</div>
           <div class="never">Never write silently</div>
         </div>
-        <p class="truth-note reveal">Shipping truth: biometric inference is deliberately off. The useful workflow is complete today with event search, QR badges, manual notes, rules-based drafts, and optional OpenAI mode.</p>
+        <p class="truth-note reveal">Shipping truth: biometric inference is deliberately off. Event search, QR badges, typed notes, prompts, and editable drafts all run locally with zero API cost.</p>
       </div>
     </section>
 
@@ -496,9 +493,9 @@
         </div>
         <div class="proof-stack reveal">
           <div class="proof"><span>Mobile experience</span><strong>Expo</strong></div>
-          <div class="proof"><span>Memory intelligence</span><strong>Rules + OpenAI</strong></div>
-          <div class="proof"><span>Secure API boundary</span><strong>Hono</strong></div>
-          <div class="proof"><span>Production HTTPS API</span><strong>Live</strong></div>
+          <div class="proof"><span>Memory intelligence</span><strong>On-device rules</strong></div>
+          <div class="proof"><span>Relationship data path</span><strong>Local only</strong></div>
+          <div class="proof"><span>Runtime API cost</span><strong>$0</strong></div>
         </div>
       </div>
     </section>

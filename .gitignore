@@ -10,8 +10,7 @@ apps/api/.env
 apps/mobile/web-build/
 apps/mobile/.expo-shared/
 
-
-.vercel
+.vercel/
 .env*
 !.env.example
 !**/.env.example

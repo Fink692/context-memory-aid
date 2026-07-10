@@ -3,9 +3,9 @@
 ## Setup
 
 - Open the sample **OpenAI Memory Hack Night** event.
-- Confirm the API health page reports `rules` or `openai`: `https://context-memory-api.vercel.app/health`.
-- Use Jordan for the refresher and smart-draft flow.
-- Keep smart tools on. Rules mode is enough for typed drafts; OpenAI mode additionally enables voice.
+- Use Jordan for the refresher and local-draft flow.
+- Keep local smart tools on.
+- The demo needs no internet connection, API key, backend, or paid account.
 
 ## Talk track
 
@@ -31,9 +31,9 @@ Tap **Add a memory**, type:
 
 > Jordan accepted a new role in New York and is hiring AI engineers for the developer tooling team.
 
-Tap **Create smart draft**, edit the summary, and confirm it.
+Tap **Create local draft**, edit the summary, and confirm it.
 
-“The service structures the update, but it never writes silently. I review the facts, edit the summary, and explicitly confirm. Without smart tools, I can always save the note exactly as written.”
+“Bundled rules organize the update entirely on this device. There is no server call or usage fee. I review the details, edit the summary, and explicitly confirm. With local tools off, I can always save the note exactly as written.”
 
 **1:25–1:42 — Prove control**
 
@@ -47,7 +47,8 @@ Delete the new memory, show the confirmation, then cancel or confirm. Open **Pri
 
 ## Truthful judge Q&A
 
-- **Does it identify faces today?** No. The finished workflow uses event search and QR badges. Biometric inference stays disabled until the licensed-model, consent, demographic-performance, and native-deletion gates pass.
-- **What goes to OpenAI?** Only after a deliberate smart action: the note and the selected person’s saved context. Matching data and unrelated contacts never go to the memory API.
-- **What works without OpenAI?** Events, search, QR matching, profiles, timelines, manual notes, backups, deletion, and deterministic rules-based drafts. Voice transcription is honestly unavailable in rules mode.
+- **Does it identify faces today?** No. The finished workflow uses event search and QR badges. Biometric inference stays disabled until every reviewed integration gate passes.
+- **What leaves the device?** No relationship data. Profiles, notes, prompts, drafts, event search, and QR matching stay local.
+- **What makes the draft smart?** Deterministic TypeScript rules extract short details, tags, and follow-up prompts. It is fast, explainable, offline, and free—not a claim of generative AI.
+- **Why no voice transcription?** Reliable transcription would require a large bundled model or a cloud speech service. Context uses typed notes so the shipped app has no paid API or audio upload.
 - **Why event-scoped?** It reduces accidental disclosure, cognitive overload, and the discomfort of ambient scanning while delivering the memory benefit.

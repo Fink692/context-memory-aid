@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import type { Memory } from "@context/shared";
+import { createLocalConversationTopics, type Memory } from "@context/shared";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Avatar, Body, Button, Card, DetailRow, Divider, EmptyState, ErrorBanner, Pill, Screen, SectionHeader, Title } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
 import { displayDate, relativeDate } from "@/lib/date";
-import { suggestTopics } from "@/lib/api";
 import { deleteFaceTemplate } from "@/lib/face-templates";
 import { useAppStore } from "@/store/app-store";
 
@@ -21,12 +20,11 @@ export default function ContactScreen() {
   const router = useRouter();
   const contact = useAppStore((state) => state.contacts.find((item) => item.id === contactId));
   const event = useAppStore((state) => state.events.find((item) => item.id === state.currentEventId));
-  const aiEnabled = useAppStore((state) => state.aiEnabled);
+  const localToolsEnabled = useAppStore((state) => state.localToolsEnabled);
   const setConversationTopics = useAppStore((state) => state.setConversationTopics);
   const setRecognitionEnabled = useAppStore((state) => state.setRecognitionEnabled);
   const deleteMemory = useAppStore((state) => state.deleteMemory);
   const deleteContact = useAppStore((state) => state.deleteContact);
-  const [loadingTopics, setLoadingTopics] = useState(false);
   const [error, setError] = useState<string>();
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [confirmPersonDelete, setConfirmPersonDelete] = useState(false);
@@ -48,21 +46,13 @@ export default function ContactScreen() {
     );
   }
 
-  const refreshTopics = async () => {
-    if (!aiEnabled) {
-      setError("Turn on smart memory tools in Privacy & data to generate new prompts. Existing saved prompts remain available.");
+  const refreshTopics = () => {
+    if (!localToolsEnabled) {
+      setError("Turn on local smart tools in Privacy & data to generate new prompts. Existing saved prompts remain available.");
       return;
     }
     setError(undefined);
-    setLoadingTopics(true);
-    try {
-      const nextTopics = await suggestTopics(contact, event);
-      setConversationTopics(contact.id, nextTopics);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not refresh conversation prompts.");
-    } finally {
-      setLoadingTopics(false);
-    }
+    setConversationTopics(contact.id, createLocalConversationTopics(contact, event));
   };
 
   const removePerson = async () => {
@@ -123,7 +113,7 @@ export default function ContactScreen() {
             <Text style={styles.sectionTitle}>Ask about</Text>
             <Text style={styles.sectionHint}>Grounded only in this person’s saved context</Text>
           </View>
-          <Button loading={loadingTopics} onPress={refreshTopics} style={styles.smallButton} variant="quiet">Refresh</Button>
+          <Button onPress={refreshTopics} style={styles.smallButton} variant="quiet">Refresh locally</Button>
         </View>
         {contact.conversationTopics.length ? contact.conversationTopics.map((topic) => (
           <View key={topic} style={styles.topicRow}>

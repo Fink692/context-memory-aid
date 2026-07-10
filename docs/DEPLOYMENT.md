@@ -1,38 +1,27 @@
-# Deployment runbook
+# Local build and distribution runbook
 
-## API on Vercel
+Context has no backend deployment. The app bundles its drafting rules and stores relationship data locally.
 
-The repository root is the Vercel project root. `vercel.json` packages the Hono adapter at `apps/api/api/index.ts` and routes requests to it.
-
-Rules mode requires no secret and never fakes transcription:
-
-```dotenv
-AI_MODE=rules
-ALLOWED_ORIGINS=http://localhost:8081,https://your-web-app.example
-```
-
-OpenAI mode requires server-only credentials:
-
-```dotenv
-AI_MODE=openai
-OPENAI_API_KEY=your_server_side_key
-OPENAI_TEXT_MODEL=gpt-5-mini
-OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe
-ALLOWED_ORIGINS=http://localhost:8081,https://your-web-app.example
-```
-
-Deploy and validate:
+## PC web build
 
 ```powershell
-npm run deploy:api
-Invoke-RestMethod https://context-memory-api.vercel.app/health
+npm ci
+npm --workspace @context/mobile run web
 ```
 
-The response must report `aiMode` as `rules` or `openai`. Never create an `EXPO_PUBLIC_OPENAI_API_KEY` variable.
+Open `http://localhost:8081`.
 
-## Expo preview build
+Create a production web bundle:
 
-`apps/mobile/eas.json` contains internal-distribution profiles and points previews to the deployed HTTPS API.
+```powershell
+npm --workspace @context/mobile run export:web
+```
+
+The output is written to `apps/mobile/dist`. It can be served by any static file server; no server functions or secrets are required.
+
+## Native preview builds
+
+Expo development builds can run over the local network. EAS profiles remain available as an optional distribution path, but the app itself requires no runtime service account or environment variable.
 
 ```powershell
 cd apps/mobile
@@ -49,17 +38,16 @@ cd apps/mobile
 npm run build:preview:android
 ```
 
-Commit the Expo project ID added by `eas init` before building because `cli.requireCommit` is enabled.
+Apple may require its own developer membership for installation/distribution on physical iPhones. That is an Apple platform requirement, not a Context API cost. PC web use is free.
 
 ## Release gates
 
 - `npm run verify`
 - `cd apps/mobile; npx expo-doctor`
 - `npm --workspace @context/mobile run export:web`
-- Public `/health` responds over HTTPS.
-- Manual typed note saves with smart tools off.
-- Rules-mode draft is editable and requires confirmation.
-- OpenAI-mode transcription is tested only when a real key is configured.
+- Run the web app with the computer disconnected from the internet after initial dependency installation.
+- Local draft and conversation-prompt generation work offline.
+- Manual typed note saves with local tools off.
 - Event creation, switching, import, duplicate handling, and removal pass.
 - Backup export/restore, person deletion, memory deletion, and delete-all pass.
-- Camera and microphone permissions plus lifecycle cleanup pass on signed physical-device builds.
+- Camera permission and lifecycle cleanup pass on signed physical-device builds.

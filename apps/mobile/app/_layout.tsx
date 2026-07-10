@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { colors, spacing } from "@/constants/theme";
@@ -11,10 +10,6 @@ export default function RootLayout() {
   const hydrated = useAppStore((state) => state.hydrated);
   const hydrationError = useAppStore((state) => state.hydrationError);
   const deleteAllData = useAppStore((state) => state.deleteAllData);
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
-  }));
-
   useEffect(() => {
     void hydrateAppStore();
   }, []);
@@ -53,7 +48,7 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -76,7 +71,7 @@ export default function RootLayout() {
         <Stack.Screen name="import" options={{ title: "Import attendees" }} />
         <Stack.Screen name="settings" options={{ title: "Privacy & data" }} />
       </Stack>
-    </QueryClientProvider>
+    </>
   );
 }
 
