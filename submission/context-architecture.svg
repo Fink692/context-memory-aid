@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">Context privacy architecture</title>
-  <desc id="desc">Event-scoped contacts, badges, memories, local drafting rules, and controls remain local. An optional loopback watcher reads only user-confirmed public HTTPS sources and queues results for human review. No relationship data is uploaded.</desc>
+  <desc id="desc">Event-scoped contacts, badges, memories, local Ollama model assistance, and controls remain local. An optional loopback watcher reads only user-confirmed public HTTPS sources and queues results for human review. No relationship data is uploaded to a cloud model.</desc>
   <rect width="1600" height="900" fill="#F4F0E7"/>
   <rect x="30" y="30" width="1540" height="840" fill="none" stroke="#BDB5A7" stroke-width="2"/>
   <text x="90" y="115" fill="#111827" font-family="Georgia, serif" font-size="58" font-weight="700">Context privacy architecture</text>
@@ -24,7 +24,7 @@
   <rect x="690" y="300" width="310" height="280" rx="28" fill="#FFFFFF" stroke="#D8D1C3" stroke-width="3"/>
   <text x="730" y="358" fill="#4438CA" font-family="Arial, sans-serif" font-size="19" font-weight="700" letter-spacing="2">LOCAL PC TOOLS</text>
   <text x="730" y="414" fill="#111827" font-family="Georgia, serif" font-size="34" font-weight="700">Draft + watch</text>
-  <text x="730" y="463" fill="#596273" font-family="Arial, sans-serif" font-size="22">On-device note drafts</text>
+  <text x="730" y="463" fill="#596273" font-family="Arial, sans-serif" font-size="22">Ollama + Qwen3 note drafts</text>
   <text x="730" y="502" fill="#596273" font-family="Arial, sans-serif" font-size="22">Confirmed public URLs only</text>
   <text x="730" y="541" fill="#596273" font-family="Arial, sans-serif" font-size="22">$0 · no memory upload</text>
 

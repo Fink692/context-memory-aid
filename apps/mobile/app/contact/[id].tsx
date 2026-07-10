@@ -3,10 +3,11 @@ import { StyleSheet, Switch, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { createLocalConversationTopics, type Memory } from "@context/shared";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Avatar, Body, Button, Card, DetailRow, Divider, EmptyState, ErrorBanner, Pill, Screen, SectionHeader, Title } from "@/components/ui";
+import { Avatar, Body, Button, Card, DetailRow, Divider, EmptyState, ErrorBanner, Pill, Screen, SectionHeader, SuccessBanner, Title } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
 import { displayDate, relativeDate } from "@/lib/date";
 import { deleteFaceTemplate } from "@/lib/face-templates";
+import { createModelConversationTopics } from "@/lib/local-model";
 import { removeWatchContact } from "@/lib/update-watcher";
 import { useAppStore } from "@/store/app-store";
 
@@ -28,6 +29,8 @@ export default function ContactScreen() {
   const deleteMemory = useAppStore((state) => state.deleteMemory);
   const deleteContact = useAppStore((state) => state.deleteContact);
   const [error, setError] = useState<string>();
+  const [topicNotice, setTopicNotice] = useState<string>();
+  const [topicBusy, setTopicBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [confirmPersonDelete, setConfirmPersonDelete] = useState(false);
   const [pendingMemory, setPendingMemory] = useState<Memory>();
@@ -48,13 +51,24 @@ export default function ContactScreen() {
     );
   }
 
-  const refreshTopics = () => {
+  const refreshTopics = async () => {
     if (!localToolsEnabled) {
-      setError("Turn on local smart tools in Privacy & data to generate new prompts. Existing saved prompts remain available.");
+      setError("Turn on local AI in Privacy & data to generate new prompts. Existing saved prompts remain available.");
       return;
     }
+    setTopicBusy(true);
     setError(undefined);
-    setConversationTopics(contact.id, createLocalConversationTopics(contact, event));
+    setTopicNotice(undefined);
+    try {
+      const result = await createModelConversationTopics(contact, event);
+      setConversationTopics(contact.id, result.topics);
+      setTopicNotice(`Prompts generated locally with ${result.model}. No cloud model was contacted.`);
+    } catch (caught) {
+      setConversationTopics(contact.id, createLocalConversationTopics(contact, event));
+      setError(`${caught instanceof Error ? caught.message : "The local model is unavailable."} Non-AI local rules refreshed the prompts instead.`);
+    } finally {
+      setTopicBusy(false);
+    }
   };
 
   const removePerson = async () => {
@@ -114,9 +128,9 @@ export default function ContactScreen() {
         <View style={styles.sectionRow}>
           <View style={styles.flex}>
             <Text style={styles.sectionTitle}>Ask about</Text>
-            <Text style={styles.sectionHint}>Grounded only in this person’s saved context</Text>
+            <Text style={styles.sectionHint}>Local-model prompts grounded only in this person’s saved context</Text>
           </View>
-          <Button onPress={refreshTopics} style={styles.smallButton} variant="quiet">Refresh locally</Button>
+          <Button loading={topicBusy} onPress={() => { void refreshTopics(); }} style={styles.smallButton} variant="quiet">Use local model</Button>
         </View>
         {contact.conversationTopics.length ? contact.conversationTopics.map((topic) => (
           <View key={topic} style={styles.topicRow}>
@@ -127,6 +141,7 @@ export default function ContactScreen() {
       </Card>
 
       <ErrorBanner message={error} />
+      <SuccessBanner message={topicNotice} />
       <Button onPress={() => router.push({ pathname: "/memory/[contactId]", params: { contactId: contact.id } })}>Add a memory</Button>
       <Button onPress={() => router.push({ pathname: "/updates", params: { contactId: contact.id } })} variant="secondary">Watch public updates</Button>
 

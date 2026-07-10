@@ -75,7 +75,7 @@ export default function HomeScreen() {
           <Card style={[styles.eventCard, isWide && styles.eventCardWide]}>
             <View style={styles.eventTopline}>
               <Pill tone="safe">Active event</Pill>
-              <Pill tone={localToolsEnabled ? "safe" : "neutral"}>{localToolsEnabled ? "Local drafts on" : "Manual notes"}</Pill>
+              <Pill tone={localToolsEnabled ? "safe" : "neutral"}>{localToolsEnabled ? "Local AI on" : "Manual notes"}</Pill>
             </View>
             <Text style={styles.eventName}>{event.name}</Text>
             <Text style={styles.eventMeta}>{displayDate(event.startsAt)} · {event.locationLabel ?? "Location not stored"}</Text>

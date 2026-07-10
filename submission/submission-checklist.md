@@ -6,7 +6,7 @@
 - [x] Event creation, switching, attendee search, CSV import, and duplicate protection
 - [x] Event-bounded QR badge scanner with manual directory fallback
 - [x] Editable people, conversation prompts, timelines, and per-memory deletion
-- [x] Manual notes and deterministic local drafts that work offline
+- [x] Manual notes and local-model drafts that work offline after the model is downloaded
 - [x] No backend, paid API, API key, cloud note processing, or usage fee
 - [x] JSON backup export/restore and full local deletion
 - [x] Automated tests, Expo Doctor, web export, security notes, architecture diagram, pitch, and script
@@ -28,7 +28,7 @@
 
 **Category:** Mobile productivity · Human-centered memory · Local-first software
 
-**Built with:** Expo, React Native, Zustand, Zod, and bundled deterministic TypeScript rules
+**Built with:** Expo, React Native, Zustand, Zod, Ollama, Qwen3, and deterministic non-AI fallbacks
 
 **Privacy promise:** Saved contacts only, active event only, deliberate QR camera use, no cloud processing of relationship data, and no memory enters the timeline without a human action. Optional public checks use only URLs the user confirms.
 

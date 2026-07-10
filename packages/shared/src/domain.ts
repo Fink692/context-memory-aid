@@ -63,6 +63,24 @@ export const TopicSuggestionSchema = z.object({
   topics: z.array(boundedText(160)).min(1).max(4),
 });
 
+export const LocalModelHealthSchema = z.object({
+  ok: z.boolean(),
+  provider: z.literal("ollama"),
+  model: boundedText(120),
+  status: z.enum(["ready", "model-missing", "runtime-unavailable"]),
+  message: boundedText(500),
+});
+
+export const LocalMemoryDraftResponseSchema = z.object({
+  model: boundedText(120),
+  draft: MemoryDraftSchema,
+});
+
+export const LocalTopicSuggestionResponseSchema = z.object({
+  model: boundedText(120),
+  topics: z.array(boundedText(160)).min(1).max(4),
+});
+
 export const ImportContactSchema = z.object({
   displayName: boundedText(100),
   company: optionalText(120),
@@ -86,6 +104,7 @@ export type ContactContext = z.infer<typeof ContactContextSchema>;
 export type Event = z.infer<typeof EventSchema>;
 export type ImportContact = z.infer<typeof ImportContactSchema>;
 export type ExportBundle = z.infer<typeof ExportBundleSchema>;
+export type LocalModelHealth = z.infer<typeof LocalModelHealthSchema>;
 
 export function toContactContext(contact: Contact): ContactContext {
   const { recognitionEnabled: _recognitionEnabled, ...context } = contact;

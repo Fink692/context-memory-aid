@@ -2,8 +2,9 @@ import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { createLocalMemoryDraft, type Memory, type MemoryDraft } from "@context/shared";
-import { Body, Button, Card, EmptyState, ErrorBanner, Pill, Screen } from "@/components/ui";
+import { Body, Button, Card, EmptyState, ErrorBanner, Pill, Screen, SuccessBanner } from "@/components/ui";
 import { colors, radius, spacing } from "@/constants/theme";
+import { createModelMemoryDraft } from "@/lib/local-model";
 import { useAppStore } from "@/store/app-store";
 
 function singleParam(value: string | string[] | undefined): string | undefined {
@@ -15,12 +16,16 @@ export default function AddMemoryScreen() {
   const contactId = singleParam(params.contactId);
   const router = useRouter();
   const contact = useAppStore((state) => state.contacts.find((item) => item.id === contactId));
+  const event = useAppStore((state) => state.events.find((item) => item.id === state.currentEventId));
   const localToolsEnabled = useAppStore((state) => state.localToolsEnabled);
   const addMemory = useAppStore((state) => state.addMemory);
   const [note, setNote] = useState("");
   const [draft, setDraft] = useState<MemoryDraft>();
   const [summary, setSummary] = useState("");
   const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [draftEngine, setDraftEngine] = useState<"model" | "rules">();
 
   if (!contact) {
     return (
@@ -50,9 +55,9 @@ export default function AddMemoryScreen() {
     router.replace({ pathname: "/contact/[id]", params: { id: contact.id } });
   };
 
-  const createDraft = () => {
+  const createDraft = async () => {
     if (!localToolsEnabled) {
-      setError("Local smart tools are off. You can still save the note exactly as written.");
+      setError("Local AI is off. You can still save the note exactly as written.");
       return;
     }
     const clean = note.trim();
@@ -60,10 +65,24 @@ export default function AddMemoryScreen() {
       setError("Add a short note first.");
       return;
     }
-    const nextDraft = createLocalMemoryDraft(clean);
+    setDraftBusy(true);
     setError(undefined);
-    setDraft(nextDraft);
-    setSummary(nextDraft.summary);
+    setNotice(undefined);
+    try {
+      const result = await createModelMemoryDraft(clean, contact, event);
+      setDraft(result.draft);
+      setSummary(result.draft.summary);
+      setDraftEngine("model");
+      setNotice(`Drafted locally with ${result.model}. Nothing was sent to a cloud model.`);
+    } catch (caught) {
+      const nextDraft = createLocalMemoryDraft(clean);
+      setDraft(nextDraft);
+      setSummary(nextDraft.summary);
+      setDraftEngine("rules");
+      setError(`${caught instanceof Error ? caught.message : "The local model is unavailable."} A non-AI local fallback created this draft instead.`);
+    } finally {
+      setDraftBusy(false);
+    }
   };
 
   const saveAsWritten = () => {
@@ -90,20 +109,21 @@ export default function AddMemoryScreen() {
   return (
     <Screen contentContainerStyle={styles.screen}>
       <View style={styles.header}>
-        <Pill tone="safe">100% on-device · works offline</Pill>
+        <Pill tone="safe">Local model on this PC · no cloud AI</Pill>
         <Text style={styles.title}>What changed with {contact.displayName.split(" ")[0]}?</Text>
-        <Body muted>Type the useful part. Save it directly or shape it into an editable local draft.</Body>
+        <Body muted>Type the useful part. Save it directly or ask the private local model to shape an editable draft.</Body>
       </View>
 
       <ErrorBanner message={error} />
+      <SuccessBanner message={notice} />
 
       <Card style={styles.localCard}>
         <View style={styles.localRow}>
           <View style={[styles.localDot, localToolsEnabled && styles.localDotEnabled]} />
           <View style={styles.flex}>
-            <Text style={styles.localTitle}>{localToolsEnabled ? "Local rules ready" : "Local smart tools are off"}</Text>
+            <Text style={styles.localTitle}>{localToolsEnabled ? "Local AI enabled" : "Local AI is off"}</Text>
             <Text style={styles.localBody}>{localToolsEnabled
-              ? "Drafting runs instantly on this device. Your note and relationship profile are never uploaded."
+              ? "Drafting uses Ollama on this PC. Your note and relationship profile never go to a cloud model."
               : "Manual notes still work without any service, account, or internet connection."}</Text>
           </View>
           {!localToolsEnabled ? <Button onPress={() => router.push("/settings")} style={styles.settingsButton} variant="quiet">Settings</Button> : null}
@@ -112,7 +132,7 @@ export default function AddMemoryScreen() {
 
       <Card style={styles.freeCard}>
         <Text style={styles.freeTitle}>Zero-cost by design</Text>
-        <Text style={styles.freeBody}>Context uses typed notes instead of cloud speech transcription, so there is no paid API, usage meter, or audio upload.</Text>
+        <Text style={styles.freeBody}>Context uses a downloaded local model and typed notes, so there is no paid API, usage meter, cloud inference, or audio upload.</Text>
       </Card>
 
       <TextInput
@@ -124,6 +144,8 @@ export default function AddMemoryScreen() {
           if (draft) {
             setDraft(undefined);
             setSummary("");
+            setDraftEngine(undefined);
+            setNotice(undefined);
           }
         }}
         placeholder="Alex accepted a new role in New York and is looking for AI engineers."
@@ -133,7 +155,7 @@ export default function AddMemoryScreen() {
       />
       <Text style={styles.characterCount}>{note.length.toLocaleString()} / 4,000</Text>
       <View style={styles.noteActions}>
-        <Button disabled={!localToolsEnabled} onPress={createDraft} style={styles.flexButton} variant="secondary">Create local draft</Button>
+        <Button disabled={!localToolsEnabled} loading={draftBusy} onPress={() => { void createDraft(); }} style={styles.flexButton} variant="secondary">Draft with local model</Button>
         <Button onPress={saveAsWritten} style={styles.flexButton}>Save as written</Button>
       </View>
 
@@ -142,9 +164,9 @@ export default function AddMemoryScreen() {
           <View style={styles.draftTopline}>
             <View style={styles.flex}>
               <Text style={styles.sectionTitle}>Review before saving</Text>
-              <Text style={styles.sectionHint}>Deterministic rules suggested this. Edit anything that does not sound like you.</Text>
+              <Text style={styles.sectionHint}>{draftEngine === "model" ? "A local model suggested this." : "A non-AI fallback suggested this."} Edit anything that does not sound like you.</Text>
             </View>
-            <Pill>Local rules</Pill>
+            <Pill>{draftEngine === "model" ? "Local model" : "Rule fallback"}</Pill>
           </View>
           <Text style={styles.label}>Timeline summary</Text>
           <TextInput accessibilityLabel="Timeline summary" maxLength={500} multiline onChangeText={setSummary} style={styles.summaryInput} value={summary} />
@@ -161,7 +183,7 @@ export default function AddMemoryScreen() {
             </View>
           ) : null}
           <Button onPress={confirmDraft}>Confirm and add to timeline</Button>
-          <Button onPress={() => { setDraft(undefined); setSummary(""); }} variant="quiet">Discard draft</Button>
+          <Button onPress={() => { setDraft(undefined); setSummary(""); setDraftEngine(undefined); setNotice(undefined); }} variant="quiet">Discard draft</Button>
         </Card>
       ) : null}
     </Screen>

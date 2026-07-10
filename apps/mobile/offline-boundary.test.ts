@@ -26,7 +26,15 @@ describe("offline runtime boundary", () => {
     ]));
 
     const networkFiles = files.filter((file) => /\bfetch\s*\(/.test(file.source)).map((file) => file.path);
-    expect(networkFiles.every((path) => path.endsWith("/app/import.tsx") || path.endsWith("/app/settings.tsx") || path.endsWith("/lib/update-watcher.ts"))).toBe(true);
+    expect(networkFiles.every((path) => path.endsWith("/app/import.tsx") || path.endsWith("/app/settings.tsx") || path.endsWith("/lib/update-watcher.ts") || path.endsWith("/lib/local-model.ts"))).toBe(true);
+    expect(source).not.toMatch(/api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com/i);
+  });
+
+  it("pins model inference to the loopback-only Ollama runtime", () => {
+    const modelService = readFileSync(resolve(process.cwd(), "..", "..", "tools", "local-model.mjs"), "utf8");
+    const urls = [...modelService.matchAll(/https?:\/\/[^\s"'`]+/gi)].map((match) => match[0]);
+    expect(new Set(urls)).toEqual(new Set(["http://127.0.0.1:11434"]));
+    expect(modelService).not.toMatch(/api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com/i);
   });
 
   it("ships without the former API client", () => {

@@ -13,6 +13,7 @@ import {
   parseFeed,
   parseWebsite,
 } from "./update-watcher-core.mjs";
+import { createLocalModelClient } from "./local-model.mjs";
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.CONTEXT_WATCH_PORT ?? "8789");
@@ -358,6 +359,7 @@ async function readJson(request) {
 }
 
 let checkInProgress = false;
+const localModel = createLocalModelClient();
 
 async function handleRequest(request, response) {
   const origin = request.headers.origin;
@@ -375,6 +377,15 @@ async function handleRequest(request, response) {
   try {
     if (request.method === "GET" && requestUrl.pathname === "/health") {
       return sendJson(response, 200, { ok: true, service: "context-update-watch", monthlyIntervalDays: 28 }, origin);
+    }
+    if (request.method === "GET" && requestUrl.pathname === "/ai/health") {
+      return sendJson(response, 200, await localModel.health(), origin);
+    }
+    if (request.method === "POST" && requestUrl.pathname === "/ai/memory-draft") {
+      return sendJson(response, 200, await localModel.createMemoryDraft(await readJson(request)), origin);
+    }
+    if (request.method === "POST" && requestUrl.pathname === "/ai/topics") {
+      return sendJson(response, 200, await localModel.createConversationTopics(await readJson(request)), origin);
     }
     if (request.method === "GET" && requestUrl.pathname === "/sources") {
       const store = await readStore();
@@ -468,6 +479,7 @@ async function serve() {
     server.listen(PORT, HOST, resolve);
   });
   console.log(`Context Update Watch is ready at http://${HOST}:${PORT}`);
+  console.log(`Local AI model: ${localModel.model} through loopback-only Ollama`);
   console.log(`Private watcher data: ${DATA_FILE}`);
 }
 

@@ -9,8 +9,8 @@ It is deliberately not an internet identity search product. Every lookup is boun
 The finished app has no hosted backend, paid API, API key, subscription, or usage meter.
 
 - Contacts, events, preferences, and confirmed memories stay in device app storage.
-- Typed smart drafts use deterministic TypeScript rules bundled with the app.
-- Conversation prompts are derived from the selected local profile.
+- Typed smart drafts and conversation prompts use `qwen3:4b` through a loopback-only Ollama runtime on the PC.
+- Strict structured-output validation and human review protect the timeline; deterministic TypeScript remains only as a clearly labeled non-AI fallback.
 - Event search and Context QR badge matching run on the device.
 - Camera frames are not captured, stored, or uploaded.
 - Voice transcription is intentionally omitted so no cloud speech service is required.
@@ -20,7 +20,7 @@ The finished app has no hosted backend, paid API, API key, subscription, or usag
 The only workspace packages are:
 
 - `apps/mobile` — Expo 57 / React Native app for iOS, Android, and web.
-- `packages/shared` — Zod contracts, local drafting rules, sample records, CSV parsing, and matching primitives.
+- `packages/shared` — Zod contracts, non-AI fallback rules, sample records, CSV parsing, and matching primitives.
 
 ## Product capabilities
 
@@ -37,7 +37,13 @@ The only workspace packages are:
 
 ## Run free on this PC
 
-Requirements: Node.js 22+.
+Requirements: Node.js 22+ and the free [Ollama](https://ollama.com/) Windows runtime.
+
+Install the local model once:
+
+```powershell
+ollama pull qwen3:4b
+```
 
 ```powershell
 npm ci
@@ -50,9 +56,9 @@ In a second terminal:
 npm --workspace @context/mobile run web
 ```
 
-Open `http://localhost:8081`. No `.env`, API key, hosted backend, or paid account is needed. The app’s core relationship features still work if the optional watcher is not running.
+Open `http://localhost:8081`. No `.env`, API key, hosted backend, or paid account is needed. Manual relationship features work without the PC service; local-model assistance and Update Watch require `npm run dev:watcher`.
 
-The watcher listens only on `127.0.0.1:8789` and stores confirmed source URLs and pending suggestions in `%LOCALAPPDATA%\ContextMemory\update-watch.json`. It never receives camera data, notes, or the rest of the relationship timeline.
+The PC service listens only on `127.0.0.1:8789`. AI requests pass a bounded relationship context directly to Ollama on `127.0.0.1:11434` and are not written to the watcher data file. Update Watch stores confirmed source URLs and pending suggestions in `%LOCALAPPDATA%\ContextMemory\update-watch.json`; its public-source requests never include relationship notes, camera data, cookies, or credentials.
 
 Install the catch-up monthly Windows task once:
 
@@ -74,7 +80,7 @@ cd ../..
 npm --workspace @context/mobile run export:web
 ```
 
-Coverage includes local draft generation, event boundaries, QR validation, CSV edge cases, workspace lifecycle, duplicate imports, memory derivation, public-update provenance, feed/page parsing, robots rules, private-address rejection, the loopback API, local deletion, and backup contracts.
+Coverage includes loopback-only model routing, structured model outputs, malformed-output rejection, deterministic fallback generation, event boundaries, QR validation, CSV edge cases, workspace lifecycle, public-update provenance, robots rules, local deletion, and backup contracts.
 
 ## Biometric status
 

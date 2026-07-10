@@ -1,6 +1,6 @@
 {
   "name": "context-memory-aid",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -12,7 +12,7 @@
     "check:updates": "node tools/update-watcher.mjs check",
     "install:update-task": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-monthly-update-task.ps1",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present && node --test tools/update-watcher.test.mjs",
+    "test": "npm run test --workspaces --if-present && node --test tools/update-watcher.test.mjs tools/local-model.test.mjs",
     "verify": "npm run typecheck && npm run test"
   },
   "engines": {

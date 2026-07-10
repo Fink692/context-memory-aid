@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Platform, StyleSheet, Switch, Text, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { useRouter } from "expo-router";
-import { ExportBundleSchema, type ExportBundle } from "@context/shared";
+import { ExportBundleSchema, type ExportBundle, type LocalModelHealth } from "@context/shared";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button, Card, Divider, ErrorBanner, Pill, Screen, SectionHeader, SuccessBanner } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
 import { deleteFaceTemplate } from "@/lib/face-templates";
+import { getLocalModelHealth } from "@/lib/local-model";
 import { clearUpdateWatchData } from "@/lib/update-watcher";
 import { useAppStore } from "@/store/app-store";
 
@@ -30,11 +31,35 @@ export default function SettingsScreen() {
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [pendingBundle, setPendingBundle] = useState<ExportBundle>();
   const [destructiveBusy, setDestructiveBusy] = useState(false);
+  const [modelHealth, setModelHealth] = useState<LocalModelHealth>();
+  const [modelError, setModelError] = useState<string>();
+  const [modelBusy, setModelBusy] = useState(false);
 
   const memoryCount = useMemo(
     () => contacts.reduce((total, contact) => total + contact.timeline.length, 0),
     [contacts],
   );
+
+  const checkLocalModel = async () => {
+    setModelBusy(true);
+    setModelError(undefined);
+    try {
+      setModelHealth(await getLocalModelHealth());
+    } catch (caught) {
+      setModelHealth(undefined);
+      setModelError(caught instanceof Error ? caught.message : "The local model service is unavailable.");
+    } finally {
+      setModelBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (localToolsEnabled) void checkLocalModel();
+    else {
+      setModelHealth(undefined);
+      setModelError(undefined);
+    }
+  }, [localToolsEnabled]);
 
   const exportData = async () => {
     setError(undefined);
@@ -153,15 +178,15 @@ export default function SettingsScreen() {
       <ErrorBanner message={error} />
       <SuccessBanner message={success} />
 
-      <SectionHeader subtitle="Optional deterministic helpers that never leave this device" title="Local smart tools" />
+      <SectionHeader subtitle="Optional model assistance that stays on this PC" title="Local AI model" />
       <Card>
         <View style={styles.switchRow}>
           <View style={styles.flex}>
-            <Text style={styles.sectionTitle}>Editable local drafts</Text>
-            <Text style={styles.sectionBody}>When on, simple on-device rules organize typed notes and suggest follow-ups. No note, profile, or matching data is uploaded.</Text>
+            <Text style={styles.sectionTitle}>Use Ollama for private assistance</Text>
+            <Text style={styles.sectionBody}>When on, memory drafts and conversation prompts use a downloaded model through PC loopback. No note or profile is sent to a cloud model.</Text>
           </View>
           <Switch
-            accessibilityLabel="Editable local drafts"
+            accessibilityLabel="Use local AI model"
             onValueChange={setLocalToolsEnabled}
             thumbColor={localToolsEnabled ? colors.success : colors.surface}
             trackColor={{ false: colors.border, true: "#A7F3D0" }}
@@ -172,12 +197,14 @@ export default function SettingsScreen() {
           <>
             <Divider />
             <View style={styles.statusRow}>
-              <View style={styles.statusDot} />
+              <View style={[styles.statusDot, modelHealth?.ok && styles.statusDotReady]} />
               <View style={styles.flex}>
-                <Text style={styles.statusTitle}>Ready offline · no API needed</Text>
-                <Text style={styles.statusBody}>Typed drafts and conversation prompts run locally with no account, subscription, or usage fee.</Text>
+                <Text style={styles.statusTitle}>{modelHealth?.ok ? `${modelHealth.model} ready` : "Checking local model"}</Text>
+                <Text style={styles.statusBody}>{modelHealth?.message ?? modelError ?? "Confirming that Ollama and the selected model are available on this PC."}</Text>
               </View>
+              <Button loading={modelBusy} onPress={() => { void checkLocalModel(); }} style={styles.checkButton} variant="quiet">Check</Button>
             </View>
+            {!modelHealth?.ok ? <Text selectable style={styles.setupCommand}>Setup: ollama pull qwen3:4b</Text> : null}
           </>
         ) : null}
       </Card>
@@ -204,7 +231,7 @@ export default function SettingsScreen() {
 
       <Card style={styles.offlineCard}>
         <Text style={styles.sectionTitle}>Network boundary</Text>
-        <Text style={styles.sectionBody}>Core app features make no remote API requests. Optional Update Watch asks a loopback-only PC service to check only public HTTPS sources you confirm. Results wait for approval and no paid API is used.</Text>
+        <Text style={styles.sectionBody}>Model assistance goes only to Ollama on 127.0.0.1. Optional Update Watch uses the same loopback-only PC service to check public HTTPS sources you confirm. No cloud AI provider, paid API, or API key is configured.</Text>
       </Card>
 
       <Card>
@@ -241,9 +268,12 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
   sectionBody: { color: colors.inkMuted, fontSize: 13, lineHeight: 20, marginTop: spacing.xs },
   statusRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  statusDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success },
+  statusDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.warning },
+  statusDotReady: { backgroundColor: colors.success },
   statusTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" },
   statusBody: { color: colors.inkMuted, fontSize: 11, lineHeight: 16, marginTop: 2 },
+  checkButton: { minHeight: 38, paddingHorizontal: spacing.sm },
+  setupCommand: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, fontFamily: "monospace" },
   statsCard: { flexDirection: "row", alignItems: "center" },
   stat: { flex: 1, alignItems: "center" },
   statValue: { color: colors.ink, fontSize: 25, fontWeight: "800", fontVariant: ["tabular-nums"] },

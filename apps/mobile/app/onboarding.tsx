@@ -8,7 +8,7 @@ import { useAppStore } from "@/store/app-store";
 const promises = [
   { number: "01", title: "Your network only", body: "Context only considers people you saved and attendees in the event you selected." },
   { number: "02", title: "The camera stays deliberate", body: "Context opens it only for event badge scanning. Frames are never saved or sent for identity search." },
-  { number: "03", title: "Local and reviewable", body: "On-device rules create an editable draft. Nothing enters the timeline until you confirm it." },
+  { number: "03", title: "Local and reviewable", body: "A model running on your PC creates an editable draft. Nothing enters the timeline until you confirm it." },
 ];
 
 export default function OnboardingScreen() {
@@ -47,13 +47,13 @@ export default function OnboardingScreen() {
       <Card style={styles.localCard}>
         <View style={styles.switchRow}>
           <View style={styles.switchCopy}>
-            <Text style={styles.switchTitle}>Enable local smart tools</Text>
+            <Text style={styles.switchTitle}>Enable local AI</Text>
             <Text style={styles.switchBody}>
-              Creates editable drafts with deterministic rules on this device. No account, subscription, API key, or internet connection is required.
+              Uses Ollama and a downloaded model on this PC for editable drafts and prompts. No cloud-model account, subscription, API key, or usage fee is required.
             </Text>
           </View>
           <Switch
-            accessibilityLabel="Enable local smart tools"
+            accessibilityLabel="Enable local AI"
             value={localToolsEnabled}
             onValueChange={setLocalToolsEnabled}
             trackColor={{ false: colors.border, true: "#A7F3D0" }}

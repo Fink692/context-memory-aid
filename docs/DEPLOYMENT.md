@@ -1,11 +1,12 @@
 # Local build and distribution runbook
 
-Context has no backend deployment. The app bundles its drafting rules and stores relationship data locally.
+Context has no hosted backend deployment. Relationship data stays local, and optional AI assistance runs through Ollama on the same PC.
 
 ## PC web build
 
 ```powershell
 npm ci
+ollama pull qwen3:4b
 npm run dev:watcher
 ```
 
@@ -17,7 +18,7 @@ npm --workspace @context/mobile run web
 
 Open `http://localhost:8081`.
 
-The watcher is optional for core app use and required only for **Update Watch**. It binds to PC loopback, so the current implementation is a PC-web companion rather than an iPhone-to-PC service.
+The PC service is optional for manual app use and required for local-model assistance and **Update Watch**. It binds to PC loopback, calls Ollama only on `127.0.0.1:11434`, and makes the current implementation a PC-web companion rather than an iPhone-to-PC service.
 
 Register the free monthly check:
 
@@ -62,7 +63,7 @@ Apple may require its own developer membership for installation/distribution on 
 - `cd apps/mobile; npx expo-doctor`
 - `npm --workspace @context/mobile run export:web`
 - Run core relationship features with the computer disconnected from the internet after initial dependency installation; Update Watch should report source network errors without affecting local memories.
-- Local draft and conversation-prompt generation work offline.
+- Local draft and conversation-prompt generation work after disconnecting the PC from the internet, provided Ollama, `qwen3:4b`, and the loopback service are running.
 - Manual typed note saves with local tools off.
 - Event creation, switching, import, duplicate handling, and removal pass.
 - Backup export/restore, person deletion, memory deletion, and delete-all pass.
