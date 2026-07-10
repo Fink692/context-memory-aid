@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Context",
+    "slug": "context-memory-aid",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "context",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Context uses the camera only after you tap Recognize. Captures stay on this device and are deleted after matching.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Context records only when you tap Add Memory. Audio is deleted after transcription."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hackathon.contextmemory"
+    },
+    "android": {
+      "package": "com.hackathon.contextmemory",
+      "allowBackup": false,
+      "permissions": ["CAMERA", "RECORD_AUDIO"]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "context-memory-aid",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:mobile": "npm --workspace @context/mobile run start",
+    "dev:api": "npm --workspace @context/api run dev",
+    "deploy:api": "npx vercel --prod --yes",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "verify": "npm run typecheck && npm run test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "react-native-safe-area-context": "5.7.0"
+  }
+}

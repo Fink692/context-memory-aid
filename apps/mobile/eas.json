@@ -1,0 +1,33 @@
+{
+  "$schema": "https://expo.dev/eas-build/schema.json",
+  "cli": {
+    "version": ">=20.5.1",
+    "requireCommit": true,
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://context-memory-api.vercel.app"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview-simulator": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "production": {
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://context-memory-api.vercel.app"
+      }
+    }
+  }
+}

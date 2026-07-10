@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Context — OpenAI Hackathon Pitch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* === THEME: VINTAGE EDITORIAL MEETS PRECISE PRODUCT UI === */
+    :root {
+      --cream: #f4f0e7;
+      --paper: #fffdf8;
+      --ink: #111827;
+      --muted: #596273;
+      --indigo: #4438ca;
+      --coral: #e86746;
+      --mint: #b8ead5;
+      --gold: #f2ca65;
+      --line: #d8d1c3;
+      --font-display: "Fraunces", Georgia, serif;
+      --font-body: "Work Sans", sans-serif;
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-normal: 0.65s;
+      --title-size: clamp(2.2rem, 6vw, 5.7rem);
+      --h2-size: clamp(1.8rem, 4vw, 4.2rem);
+      --h3-size: clamp(1rem, 2.1vw, 1.7rem);
+      --body-size: clamp(0.78rem, 1.35vw, 1.18rem);
+      --small-size: clamp(0.62rem, 0.9vw, 0.82rem);
+      --slide-padding: clamp(1rem, 4vw, 4rem);
+      --content-gap: clamp(0.5rem, 2vw, 2rem);
+      --element-gap: clamp(0.25rem, 1vw, 1rem);
+    }
+
+    /* === RESET === */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--cream); color: var(--ink); font-family: var(--font-body); }
+
+    /* ===========================================
+       VIEWPORT FITTING: MANDATORY BASE STYLES
+       Include this ENTIRE file in every presentation.
+       These styles ensure slides fit exactly in the viewport.
+       =========================================== */
+
+    /* 1. Lock html/body to viewport */
+    html, body {
+        height: 100%;
+        overflow-x: hidden;
+    }
+
+    html {
+        scroll-snap-type: y mandatory;
+        scroll-behavior: smooth;
+    }
+
+    /* 2. Each slide = exact viewport height */
+    .slide {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh; /* Dynamic viewport height for mobile browsers */
+        overflow: hidden; /* CRITICAL: Prevent ANY overflow */
+        scroll-snap-align: start;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    /* 3. Content container with flex for centering */
+    .slide-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        max-height: 100%;
+        overflow: hidden; /* Double-protection against overflow */
+        padding: var(--slide-padding);
+    }
+
+    /* 4. ALL typography uses clamp() for responsive scaling */
+    :root {
+        /* Titles scale from mobile to desktop */
+        --title-size: clamp(1.5rem, 5vw, 4rem);
+        --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+        --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+
+        /* Body text */
+        --body-size: clamp(0.75rem, 1.5vw, 1.125rem);
+        --small-size: clamp(0.65rem, 1vw, 0.875rem);
+
+        /* Spacing scales with viewport */
+        --slide-padding: clamp(1rem, 4vw, 4rem);
+        --content-gap: clamp(0.5rem, 2vw, 2rem);
+        --element-gap: clamp(0.25rem, 1vw, 1rem);
+    }
+
+    /* 5. Cards/containers use viewport-relative max sizes */
+    .card, .container, .content-box {
+        max-width: min(90vw, 1000px);
+        max-height: min(80vh, 700px);
+    }
+
+    /* 6. Lists auto-scale with viewport */
+    .feature-list, .bullet-list {
+        gap: clamp(0.4rem, 1vh, 1rem);
+    }
+
+    .feature-list li, .bullet-list li {
+        font-size: var(--body-size);
+        line-height: 1.4;
+    }
+
+    /* 7. Grids adapt to available space */
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+        gap: clamp(0.5rem, 1.5vw, 1rem);
+    }
+
+    /* 8. Images constrained to viewport */
+    img, .image-container {
+        max-width: 100%;
+        max-height: min(50vh, 400px);
+        object-fit: contain;
+    }
+
+    /* ===========================================
+       RESPONSIVE BREAKPOINTS
+       Aggressive scaling for smaller viewports
+       =========================================== */
+
+    /* Short viewports (< 700px height) */
+    @media (max-height: 700px) {
+        :root {
+            --slide-padding: clamp(0.75rem, 3vw, 2rem);
+            --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+            --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+            --h2-size: clamp(1rem, 3vw, 1.75rem);
+        }
+    }
+
+    /* Very short viewports (< 600px height) */
+    @media (max-height: 600px) {
+        :root {
+            --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+            --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+            --title-size: clamp(1.1rem, 4vw, 2rem);
+            --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+        }
+
+        /* Hide non-essential elements */
+        .nav-dots, .keyboard-hint, .decorative {
+            display: none;
+        }
+    }
+
+    /* Extremely short (landscape phones, < 500px height) */
+    @media (max-height: 500px) {
+        :root {
+            --slide-padding: clamp(0.4rem, 2vw, 1rem);
+            --title-size: clamp(1rem, 3.5vw, 1.5rem);
+            --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+            --body-size: clamp(0.65rem, 1vw, 0.85rem);
+        }
+    }
+
+    /* Narrow viewports (< 600px width) */
+    @media (max-width: 600px) {
+        :root {
+            --title-size: clamp(1.25rem, 7vw, 2.5rem);
+        }
+
+        /* Stack grids vertically */
+        .grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ===========================================
+       REDUCED MOTION
+       Respect user preferences
+       =========================================== */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.2s !important;
+        }
+
+        html {
+            scroll-behavior: auto;
+        }
+    }
+
+    /* === SHARED SLIDE CHROME === */
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: clamp(0.6rem, 1.2vw, 1.2rem);
+      border: 1px solid rgba(17, 24, 39, 0.16);
+      pointer-events: none;
+    }
+    .slide-no {
+      position: absolute;
+      top: clamp(1rem, 2vw, 2rem);
+      right: clamp(1rem, 2.5vw, 2.5rem);
+      font-size: var(--small-size);
+      font-weight: 800;
+      letter-spacing: clamp(0.08rem, 0.2vw, 0.18rem);
+      z-index: 4;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: clamp(0.45rem, 1vw, 0.8rem);
+      font-size: var(--small-size);
+      font-weight: 800;
+      letter-spacing: clamp(0.08rem, 0.2vw, 0.18rem);
+      text-transform: uppercase;
+    }
+    .brand-mark {
+      width: clamp(1.7rem, 3vw, 2.5rem);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: clamp(0.45rem, 0.8vw, 0.7rem);
+      color: white;
+      background: var(--indigo);
+      font-family: var(--font-display);
+      font-size: clamp(0.9rem, 1.5vw, 1.25rem);
+    }
+    h1, h2, h3 { font-family: var(--font-display); letter-spacing: clamp(-0.09rem, -0.08vw, -0.02rem); }
+    h1 { font-size: var(--title-size); line-height: 0.98; }
+    h2 { font-size: var(--h2-size); line-height: 1.02; }
+    h3 { font-size: var(--h3-size); line-height: 1.1; }
+    p { font-size: var(--body-size); line-height: 1.5; }
+    .eyebrow {
+      color: var(--indigo);
+      font-size: var(--small-size);
+      font-weight: 800;
+      letter-spacing: clamp(0.08rem, 0.22vw, 0.2rem);
+      text-transform: uppercase;
+    }
+    .accent { color: var(--coral); font-style: italic; }
+    .reveal {
+      opacity: 0;
+      transform: translateY(clamp(0.8rem, 2vw, 1.8rem));
+      transition: opacity var(--duration-normal) var(--ease-out-expo), transform var(--duration-normal) var(--ease-out-expo);
+    }
+    .visible .reveal { opacity: 1; transform: translateY(0); }
+    .reveal:nth-child(2) { transition-delay: 0.08s; }
+    .reveal:nth-child(3) { transition-delay: 0.16s; }
+    .reveal:nth-child(4) { transition-delay: 0.24s; }
+    .reveal:nth-child(5) { transition-delay: 0.32s; }
+
+    /* === SLIDE 1: THE RECOGNITION MOMENT === */
+    .title-slide { background: var(--cream); }
+    .title-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(15rem, 0.82fr);
+      align-items: center;
+      gap: clamp(1rem, 5vw, 5rem);
+      height: 100%;
+    }
+    .title-copy { display: flex; flex-direction: column; gap: clamp(0.7rem, 2vh, 1.5rem); }
+    .title-copy p { color: var(--muted); max-width: min(90%, 40rem); }
+    .memory-orbit {
+      position: relative;
+      aspect-ratio: 1;
+      max-height: min(68vh, 38rem);
+      display: grid;
+      place-items: center;
+    }
+    .orbit-ring { position: absolute; border: 1px solid rgba(68, 56, 202, 0.28); border-radius: 50%; }
+    .ring-one { inset: 3%; animation: rotate 22s linear infinite; }
+    .ring-two { inset: 17%; border-style: dashed; animation: rotate 15s linear infinite reverse; }
+    .ring-three { inset: 31%; background: var(--indigo); border: 0; box-shadow: 0 0 clamp(2rem, 7vw, 6rem) rgba(68, 56, 202, 0.22); }
+    .orbit-label {
+      position: absolute;
+      padding: clamp(0.45rem, 1vw, 0.8rem) clamp(0.7rem, 1.4vw, 1.2rem);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper);
+      font-size: var(--small-size);
+      font-weight: 700;
+      box-shadow: 0 clamp(0.3rem, 1vw, 0.8rem) clamp(1rem, 3vw, 2rem) rgba(17, 24, 39, 0.08);
+    }
+    .label-name { top: 5%; left: 4%; }
+    .label-met { right: 0; top: 30%; }
+    .label-promise { bottom: 8%; left: 8%; }
+    .center-c { position: relative; z-index: 2; color: white; font-family: var(--font-display); font-size: clamp(3rem, 8vw, 7rem); font-weight: 900; }
+    @keyframes rotate { to { transform: rotate(360deg); } }
+
+    /* === SLIDE 2: THE PROBLEM === */
+    .problem-slide { background: var(--ink); color: white; }
+    .problem-slide::before { border-color: rgba(255,255,255,0.18); }
+    .problem-slide .slide-content { gap: clamp(0.8rem, 3vh, 2rem); }
+    .problem-quote { max-width: min(86vw, 63rem); font-size: clamp(2.3rem, 5.7vw, 5.5rem); }
+    .fragment-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(0.5rem, 1.2vw, 1rem); }
+    .fragment {
+      min-height: clamp(6rem, 17vh, 10rem);
+      padding: clamp(0.7rem, 1.5vw, 1.2rem);
+      border: 1px solid rgba(255,255,255,0.2);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .fragment span { color: #9da5b3; font-size: var(--small-size); text-transform: uppercase; letter-spacing: clamp(0.05rem, 0.15vw, 0.12rem); }
+    .fragment strong { font-family: var(--font-display); font-size: clamp(1rem, 2.1vw, 1.7rem); font-weight: 600; }
+    .fragment.faded strong { filter: blur(clamp(0.08rem, 0.2vw, 0.16rem)); opacity: 0.5; }
+    .problem-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: clamp(1rem, 3vw, 3rem); }
+    .problem-bottom p { color: #c8cdd6; max-width: 42rem; }
+    .cost-chip { color: var(--ink); background: var(--gold); padding: clamp(0.55rem, 1vw, 0.8rem) clamp(0.8rem, 1.5vw, 1.3rem); font-size: var(--small-size); font-weight: 800; white-space: nowrap; }
+
+    /* === SLIDE 3: THE PRODUCT LOOP === */
+    .solution-slide { background: var(--paper); }
+    .solution-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; align-items: center; gap: clamp(1rem, 5vw, 5rem); height: 100%; }
+    .steps { display: flex; flex-direction: column; gap: clamp(0.7rem, 2vh, 1.4rem); margin-top: clamp(0.7rem, 2vh, 1.4rem); }
+    .step { display: grid; grid-template-columns: clamp(2rem, 4vw, 3.5rem) 1fr; align-items: start; gap: clamp(0.7rem, 1.5vw, 1.2rem); }
+    .step-no { aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: white; font-size: var(--small-size); font-weight: 800; }
+    .step h3 { font-family: var(--font-body); font-size: clamp(0.95rem, 1.7vw, 1.35rem); font-weight: 800; letter-spacing: 0; }
+    .step p { color: var(--muted); font-size: clamp(0.68rem, 1.1vw, 0.95rem); }
+    .profile-card {
+      position: relative;
+      justify-self: center;
+      width: min(90%, 31rem);
+      padding: clamp(1rem, 2.4vw, 2rem);
+      border-radius: clamp(1rem, 2.2vw, 1.8rem);
+      color: white;
+      background: var(--ink);
+      box-shadow: clamp(0.8rem, 2vw, 1.5rem) clamp(0.8rem, 2vw, 1.5rem) 0 var(--mint);
+    }
+    .profile-top { display: flex; align-items: center; gap: clamp(0.7rem, 1.5vw, 1.2rem); margin-bottom: clamp(0.8rem, 2vh, 1.4rem); }
+    .avatar { width: clamp(3rem, 7vw, 5rem); aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; background: var(--indigo); font-family: var(--font-display); font-size: clamp(1rem, 2.2vw, 1.7rem); }
+    .profile-name { font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 2.6rem); }
+    .profile-role { color: #b9c0ca; font-size: var(--small-size); }
+    .profile-line { display: grid; grid-template-columns: clamp(5.5rem, 10vw, 8rem) 1fr; gap: clamp(0.5rem, 1vw, 0.9rem); padding: clamp(0.35rem, 0.8vh, 0.65rem) 0; border-top: 1px solid rgba(255,255,255,0.13); }
+    .profile-line span { color: #9da5b3; font-size: var(--small-size); font-weight: 700; }
+    .profile-line strong { font-size: clamp(0.72rem, 1.15vw, 0.98rem); font-weight: 600; }
+    .ask-box { margin-top: clamp(0.7rem, 1.5vh, 1.1rem); padding: clamp(0.65rem, 1.2vw, 1rem); background: var(--indigo); border-radius: clamp(0.6rem, 1vw, 0.9rem); }
+    .ask-box span { font-size: var(--small-size); text-transform: uppercase; letter-spacing: clamp(0.05rem, 0.15vw, 0.12rem); }
+    .ask-box strong { display: block; margin-top: clamp(0.2rem, 0.5vh, 0.4rem); font-size: clamp(0.78rem, 1.25vw, 1rem); }
+
+    /* === SLIDE 4: TRUST ARCHITECTURE === */
+    .trust-slide { background: #dce9e3; }
+    .trust-slide .slide-content { gap: clamp(0.7rem, 2.5vh, 1.7rem); }
+    .trust-flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: clamp(0.45rem, 1vw, 0.9rem); }
+    .trust-node { padding: clamp(0.8rem, 1.8vw, 1.5rem); border: 1px solid rgba(17,24,39,0.26); background: rgba(255,255,255,0.58); }
+    .trust-node.local { background: var(--ink); color: white; }
+    .trust-node.confirm { background: var(--paper); }
+    .trust-node .node-label { font-size: var(--small-size); font-weight: 800; text-transform: uppercase; letter-spacing: clamp(0.05rem, 0.15vw, 0.12rem); }
+    .trust-node h3 { margin: clamp(0.5rem, 1vh, 0.8rem) 0; }
+    .trust-node p { font-size: clamp(0.68rem, 1.05vw, 0.92rem); color: var(--muted); }
+    .trust-node.local p { color: #cbd0d8; }
+    .arrow { display: grid; place-items: center; font-size: clamp(1.3rem, 3vw, 2.4rem); color: var(--indigo); font-weight: 800; }
+    .never-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(0.4rem, 1vw, 0.8rem); }
+    .never { padding: clamp(0.55rem, 1vw, 0.85rem); border-top: clamp(0.18rem, 0.35vw, 0.3rem) solid var(--coral); background: rgba(255,255,255,0.42); font-size: var(--small-size); font-weight: 700; }
+    .truth-note { color: var(--muted); font-size: var(--small-size); }
+
+    /* === SLIDE 5: THE VISION AND ASK === */
+    .vision-slide { background: var(--indigo); color: white; }
+    .vision-slide::before { border-color: rgba(255,255,255,0.2); }
+    .vision-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; align-items: center; gap: clamp(1rem, 5vw, 5rem); height: 100%; }
+    .vision-copy { display: flex; flex-direction: column; gap: clamp(0.7rem, 2vh, 1.5rem); }
+    .vision-copy .eyebrow { color: var(--gold); }
+    .vision-copy p { color: #d9d8f7; max-width: 42rem; }
+    .final-line { font-family: var(--font-display); font-size: clamp(1.2rem, 2.8vw, 2.3rem); color: white; }
+    .proof-stack { display: flex; flex-direction: column; gap: clamp(0.5rem, 1.5vh, 1rem); }
+    .proof { padding: clamp(0.75rem, 1.5vw, 1.2rem); border: 1px solid rgba(255,255,255,0.28); display: flex; align-items: center; justify-content: space-between; gap: clamp(0.5rem, 1vw, 1rem); }
+    .proof span { color: #d9d8f7; font-size: var(--small-size); }
+    .proof strong { color: var(--gold); font-family: var(--font-display); font-size: clamp(1rem, 2vw, 1.6rem); white-space: nowrap; }
+    .cta { align-self: flex-start; padding: clamp(0.65rem, 1.2vw, 1rem) clamp(0.9rem, 1.8vw, 1.5rem); color: var(--ink); background: var(--mint); font-size: var(--small-size); font-weight: 800; text-transform: uppercase; letter-spacing: clamp(0.05rem, 0.15vw, 0.12rem); }
+
+    /* === NAVIGATION AND PROGRESS === */
+    .progress-bar { position: fixed; z-index: 100; top: 0; left: 0; height: clamp(0.15rem, 0.35vh, 0.28rem); width: 0; background: var(--coral); transition: width 0.25s ease; }
+    .nav-dots { position: fixed; z-index: 100; right: clamp(0.7rem, 1.3vw, 1.2rem); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: clamp(0.35rem, 0.8vh, 0.6rem); }
+    .nav-dot { width: clamp(0.45rem, 0.7vw, 0.65rem); aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--coral); background: transparent; cursor: pointer; }
+    .nav-dot.active { background: var(--coral); }
+    .keyboard-hint { position: fixed; z-index: 100; left: clamp(1rem, 2vw, 2rem); bottom: clamp(0.7rem, 1.4vw, 1.2rem); color: rgba(89,98,115,0.8); font-size: var(--small-size); }
+
+    /* === RESPONSIVE LAYOUT ADAPTATIONS === */
+    @media (max-width: 760px) {
+      .title-grid, .solution-grid, .vision-grid { grid-template-columns: 1fr; }
+      .memory-orbit { position: absolute; width: 44vw; right: -8vw; bottom: -8vw; opacity: 0.42; }
+      .profile-card { width: min(92%, 27rem); }
+      .trust-flow { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); }
+      .fragment-row, .never-row { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-bar" aria-hidden="true"></div>
+  <nav class="nav-dots" aria-label="Slide navigation"></nav>
+  <div class="keyboard-hint">↑ ↓ or Space</div>
+
+  <main>
+    <!-- Speaker note: Open with the familiar conference moment. Do not explain the technology yet. -->
+    <section class="slide title-slide" id="slide-1" aria-label="Title slide">
+      <div class="slide-no">01 / 05</div>
+      <div class="slide-content title-grid">
+        <div class="title-copy">
+          <div class="brand reveal"><span class="brand-mark">C</span> Context · OpenAI Hackathon</div>
+          <p class="eyebrow reveal">You know the face</p>
+          <h1 class="reveal">Your memory drops <span class="accent">the thread.</span></h1>
+          <p class="reveal">Context gives you the relationship back—at the exact moment you need it.</p>
+        </div>
+        <div class="memory-orbit reveal" aria-hidden="true">
+          <div class="orbit-ring ring-one"></div>
+          <div class="orbit-ring ring-two"></div>
+          <div class="orbit-ring ring-three"></div>
+          <span class="center-c">C</span>
+          <span class="orbit-label label-name">Jordan Patel</span>
+          <span class="orbit-label label-met">Met · Hackathon 2025</span>
+          <span class="orbit-label label-promise">Ask about the new team</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Speaker note: Let the audience feel the social cost and cognitive load. -->
+    <section class="slide problem-slide" id="slide-2" aria-label="Problem slide">
+      <div class="slide-no">02 / 05</div>
+      <div class="slide-content">
+        <p class="eyebrow reveal">The awkward five seconds</p>
+        <h2 class="problem-quote reveal">“I know that face.<br>Why can’t I find the story?”</h2>
+        <div class="fragment-row reveal">
+          <div class="fragment"><span>Name</span><strong>Jordan…?</strong></div>
+          <div class="fragment faded"><span>Where we met</span><strong>Some event</strong></div>
+          <div class="fragment faded"><span>What mattered</span><strong>The tooling idea</strong></div>
+          <div class="fragment faded"><span>What I promised</span><strong>Send the article</strong></div>
+        </div>
+        <div class="problem-bottom reveal">
+          <p>Our brains build relationships beautifully. They just were not designed to retrieve hundreds of names, promises, and life updates on command.</p>
+          <span class="cost-chip">The relationship is there. The context is not.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Speaker note: Demo immediately after this slide. Keep the loop to three steps. -->
+    <section class="slide solution-slide" id="slide-3" aria-label="Product slide">
+      <div class="slide-no">03 / 05</div>
+      <div class="slide-content solution-grid">
+        <div>
+          <p class="eyebrow reveal">A private memory loop</p>
+          <h2 class="reveal">Remember before.<br>Capture after.</h2>
+          <div class="steps">
+            <div class="step reveal"><span class="step-no">1</span><div><h3>Select the event</h3><p>Only saved contacts on that attendee list are candidates.</p></div></div>
+            <div class="step reveal"><span class="step-no">2</span><div><h3>Ask once</h3><p>A deliberate camera action reveals the relationship refresher—or safely returns no match.</p></div></div>
+            <div class="step reveal"><span class="step-no">3</span><div><h3>Confirm the memory</h3><p>Dictate the update. OpenAI structures it. You edit and approve every fact.</p></div></div>
+          </div>
+        </div>
+        <div class="profile-card reveal">
+          <div class="profile-top"><div class="avatar">JP</div><div><div class="profile-name">Jordan Patel</div><div class="profile-role">Engineering Manager · Stripe</div></div></div>
+          <div class="profile-line"><span>Met</span><strong>OpenAI Hackathon 2025</strong></div>
+          <div class="profile-line"><span>Last spoke</span><strong>8 months ago</strong></div>
+          <div class="profile-line"><span>Last discussed</span><strong>Developer tooling</strong></div>
+          <div class="profile-line"><span>Recent update</span><strong>Promoted to Engineering Manager</strong></div>
+          <div class="ask-box"><span>Ask about</span><strong>Their new team · The marathon last month</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Speaker note: Address the obvious objection directly and truthfully. -->
+    <section class="slide trust-slide" id="slide-4" aria-label="Trust architecture slide">
+      <div class="slide-no">04 / 05</div>
+      <div class="slide-content">
+        <p class="eyebrow reveal">The trust boundary is the product</p>
+        <h2 class="reveal">Identity stays local.<br>Intelligence stays minimal.</h2>
+        <div class="trust-flow reveal">
+          <div class="trust-node local"><span class="node-label">On device</span><h3>Event + saved contacts</h3><p>Camera capture, candidate filter, templates, notes. Images are deleted after the attempt.</p></div>
+          <div class="arrow">→</div>
+          <div class="trust-node"><span class="node-label">OpenAI proxy</span><h3>Selected context only</h3><p>The dictated note and one selected profile become a strict, structured draft.</p></div>
+          <div class="arrow">→</div>
+          <div class="trust-node confirm"><span class="node-label">Human control</span><h3>Edit, confirm, save</h3><p>No inferred fact reaches the timeline without an explicit tap.</p></div>
+        </div>
+        <div class="never-row reveal">
+          <div class="never">Never identify strangers</div>
+          <div class="never">Never scan continuously</div>
+          <div class="never">Never upload face data</div>
+          <div class="never">Never write silently</div>
+        </div>
+        <p class="truth-note reveal">Hackathon truth: the shipping prototype uses a visibly labeled deterministic camera/QR adapter until a licensed, bias-evaluated on-device embedding model passes the documented gates.</p>
+      </div>
+    </section>
+
+    <!-- Speaker note: End on the category, proof, and remembered phrase. -->
+    <section class="slide vision-slide" id="slide-5" aria-label="Vision slide">
+      <div class="slide-no">05 / 05</div>
+      <div class="slide-content vision-grid">
+        <div class="vision-copy">
+          <div class="brand reveal"><span class="brand-mark">C</span> Context</div>
+          <p class="eyebrow reveal">Not another CRM</p>
+          <h2 class="reveal">A memory prosthetic for <span class="accent">relationships.</span></h2>
+          <p class="reveal">The goal is not to know more people. It is to show up better for the people you already know.</p>
+          <div class="final-line reveal">Give people back the context behind the connection.</div>
+          <span class="cta reveal">Remember the person, not just the profile.</span>
+        </div>
+        <div class="proof-stack reveal">
+          <div class="proof"><span>Mobile experience</span><strong>Expo</strong></div>
+          <div class="proof"><span>Memory intelligence</span><strong>OpenAI</strong></div>
+          <div class="proof"><span>Secure API boundary</span><strong>Hono</strong></div>
+          <div class="proof"><span>Public demo API</span><strong>Live</strong></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /* === PRESENTATION CONTROLLER: KEYBOARD, WHEEL, TOUCH, DOTS, PROGRESS === */
+    class SlidePresentation {
+      constructor() {
+        this.slides = [...document.querySelectorAll('.slide')];
+        this.currentSlide = 0;
+        this.wheelLocked = false;
+        this.touchStartY = 0;
+        this.progress = document.querySelector('.progress-bar');
+        this.dots = document.querySelector('.nav-dots');
+        const requested = Number(new URLSearchParams(location.search).get('slide'));
+        this.captureIndex = Number.isInteger(requested) && requested >= 1 && requested <= this.slides.length
+          ? requested - 1
+          : null;
+        if (this.captureIndex !== null) {
+          this.currentSlide = this.captureIndex;
+          this.slides.forEach((slide, index) => {
+            if (index !== this.captureIndex) slide.style.display = 'none';
+          });
+        }
+        this.createDots();
+        this.observeSlides();
+        this.bindKeyboard();
+        this.bindWheel();
+        this.bindTouch();
+        if (this.captureIndex !== null) {
+          this.slides[this.captureIndex].classList.add('visible');
+          this.updateChrome();
+        } else {
+          this.slides[0].classList.add('visible');
+          this.updateChrome();
+        }
+      }
+      createDots() {
+        this.slides.forEach((_, index) => {
+          const dot = document.createElement('button');
+          dot.className = 'nav-dot';
+          dot.setAttribute('aria-label', `Go to slide ${index + 1}`);
+          dot.addEventListener('click', () => this.goTo(index));
+          this.dots.appendChild(dot);
+        });
+      }
+      observeSlides() {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting && entry.intersectionRatio > 0.55) {
+              this.currentSlide = this.slides.indexOf(entry.target);
+              entry.target.classList.add('visible');
+              this.updateChrome();
+            }
+          });
+        }, { threshold: [0.55] });
+        this.slides.forEach((slide) => observer.observe(slide));
+      }
+      bindKeyboard() {
+        document.addEventListener('keydown', (event) => {
+          if (['ArrowDown', 'ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); this.next(); }
+          if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); this.previous(); }
+          if (event.key === 'Home') this.goTo(0);
+          if (event.key === 'End') this.goTo(this.slides.length - 1);
+        });
+      }
+      bindWheel() {
+        document.addEventListener('wheel', (event) => {
+          if (this.wheelLocked || Math.abs(event.deltaY) < 20) return;
+          this.wheelLocked = true;
+          event.deltaY > 0 ? this.next() : this.previous();
+          window.setTimeout(() => { this.wheelLocked = false; }, 650);
+        }, { passive: true });
+      }
+      bindTouch() {
+        document.addEventListener('touchstart', (event) => { this.touchStartY = event.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (event) => {
+          const delta = this.touchStartY - event.changedTouches[0].clientY;
+          if (Math.abs(delta) > 50) delta > 0 ? this.next() : this.previous();
+        }, { passive: true });
+      }
+      next() { this.goTo(Math.min(this.currentSlide + 1, this.slides.length - 1)); }
+      previous() { this.goTo(Math.max(this.currentSlide - 1, 0)); }
+      goTo(index, smooth = true) {
+        this.currentSlide = index;
+        this.slides[index].scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+        this.slides[index].classList.add('visible');
+        this.updateChrome();
+      }
+      updateChrome() {
+        this.progress.style.width = `${((this.currentSlide + 1) / this.slides.length) * 100}%`;
+        [...this.dots.children].forEach((dot, index) => dot.classList.toggle('active', index === this.currentSlide));
+      }
+    }
+    new SlidePresentation();
+  </script>
+</body>
+</html>
