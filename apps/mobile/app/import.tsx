@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import { parseAttendeeCsv, type ImportContact } from "@context/shared";
-import { Body, Button, Card, ErrorBanner, Pill, Screen } from "@/components/ui";
+import { Body, Button, Card, EmptyState, ErrorBanner, Pill, Screen, SuccessBanner } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
 import { useAppStore } from "@/store/app-store";
 
@@ -19,30 +19,47 @@ export default function ImportScreen() {
   const pickCsv = async () => {
     setErrors([]);
     setSuccess(undefined);
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ["text/csv", "text/plain", "application/vnd.ms-excel"],
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-    if (result.canceled) return;
-    const asset = result.assets[0];
-    if (!asset) return;
-    if (asset.size && asset.size > 1_000_000) {
-      setErrors(["CSV must be smaller than 1 MB."]);
-      return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["text/csv", "text/plain", "application/vnd.ms-excel"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset) return;
+      if (asset.size && asset.size > 1_000_000) {
+        setErrors(["CSV must be smaller than 1 MB."]);
+        return;
+      }
+      const text = await (await fetch(asset.uri)).text();
+      const parsed = parseAttendeeCsv(text);
+      setFilename(asset.name);
+      setPreview(parsed.contacts);
+      setErrors(parsed.errors);
+    } catch {
+      setErrors(["Context could not read that CSV file. Try exporting it again as UTF-8 CSV."]);
     }
-    const text = await (await fetch(asset.uri)).text();
-    const parsed = parseAttendeeCsv(text);
-    setFilename(asset.name);
-    setPreview(parsed.contacts);
-    setErrors(parsed.errors);
   };
 
   const confirmImport = () => {
-    const count = importContacts(preview);
-    setSuccess(`${count} new ${count === 1 ? "person" : "people"} added to ${event?.name ?? "the active event"}.`);
+    const result = importContacts(preview);
+    const skipped = result.skipped ? ` ${result.skipped} duplicate ${result.skipped === 1 ? "row was" : "rows were"} skipped.` : "";
+    setSuccess(`${result.added} new ${result.added === 1 ? "person" : "people"} added to ${event?.name ?? "the active event"}.${skipped}`);
     setPreview([]);
   };
+
+  if (!event) {
+    return (
+      <Screen>
+        <EmptyState
+          action={<Button onPress={() => router.replace("/events")}>Create an event</Button>}
+          body="Imports need an active event so every person lands inside a clear attendee boundary."
+          title="Create an event before importing"
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -58,8 +75,9 @@ export default function ImportScreen() {
       </Card>
       <Button onPress={pickCsv}>Choose CSV file</Button>
       <ErrorBanner message={errors[0]} />
-      {errors.length > 1 ? <Text style={styles.moreErrors}>Plus {errors.length - 1} additional row errors.</Text> : null}
-      {success ? <Card style={styles.successCard}><Text style={styles.successText}>{success}</Text></Card> : null}
+      {errors.slice(1, 4).map((message) => <Text key={message} style={styles.moreErrors}>{message}</Text>)}
+      {errors.length > 4 ? <Text style={styles.moreErrors}>Plus {errors.length - 4} additional row errors.</Text> : null}
+      <SuccessBanner message={success} />
 
       {preview.length ? (
         <View style={styles.preview}>
@@ -84,17 +102,15 @@ export default function ImportScreen() {
 
 const styles = StyleSheet.create({
   title: { color: colors.ink, fontSize: 29, lineHeight: 35, fontWeight: "800", letterSpacing: -0.6 },
-  exampleCard: { shadowOpacity: 0, backgroundColor: colors.ink, borderColor: colors.ink },
+  exampleCard: { backgroundColor: colors.ink, borderColor: colors.ink },
   exampleTitle: { color: colors.white, fontSize: 13, fontWeight: "800" },
   code: { color: "#C9CED7", fontSize: 11, lineHeight: 18 },
   moreErrors: { color: colors.danger, fontSize: 12 },
-  successCard: { backgroundColor: "#DDF7EC", borderColor: "#B7E4D2", shadowOpacity: 0 },
-  successText: { color: colors.success, fontSize: 14, fontWeight: "700" },
   preview: { gap: spacing.sm },
   previewTopline: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
   previewTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
   filename: { flex: 1, color: colors.inkMuted, fontSize: 12, textAlign: "right" },
-  previewCard: { paddingVertical: spacing.sm, shadowOpacity: 0 },
+  previewCard: { paddingVertical: spacing.sm },
   contactName: { color: colors.ink, fontSize: 15, fontWeight: "800" },
   contactMeta: { color: colors.inkMuted, fontSize: 12 },
 });

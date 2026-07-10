@@ -7,8 +7,8 @@ import { useAppStore } from "@/store/app-store";
 
 const promises = [
   { number: "01", title: "Your network only", body: "Context only considers people you saved and attendees in the event you selected." },
-  { number: "02", title: "You start every scan", body: "There is no continuous or background camera. Captures are discarded after matching." },
-  { number: "03", title: "You approve every memory", body: "AI creates an editable draft. Nothing enters the timeline until you confirm it." },
+  { number: "02", title: "The camera stays deliberate", body: "Context opens it only for event badge scanning. Frames are never saved or sent for identity search." },
+  { number: "03", title: "You approve every memory", body: "Smart tools create an editable draft. Nothing enters the timeline until you confirm it." },
 ];
 
 export default function OnboardingScreen() {
@@ -16,8 +16,8 @@ export default function OnboardingScreen() {
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
   const router = useRouter();
 
-  const continueToDemo = () => {
-    completeOnboarding(aiEnabled);
+  const finish = (loadSample: boolean) => {
+    completeOnboarding(aiEnabled, loadSample);
     router.replace("/home");
   };
 
@@ -47,13 +47,13 @@ export default function OnboardingScreen() {
       <Card style={styles.aiCard}>
         <View style={styles.switchRow}>
           <View style={styles.switchCopy}>
-            <Text style={styles.switchTitle}>Enable OpenAI memory intelligence</Text>
+            <Text style={styles.switchTitle}>Enable smart memory tools</Text>
             <Text style={styles.switchBody}>
-              Sends your dictated note and the selected person’s profile timeline to the configured API. Face images are never sent.
+              Sends your note and the selected person’s saved profile to the configured API only when you request a draft. Matching data is never sent.
             </Text>
           </View>
           <Switch
-            accessibilityLabel="Enable OpenAI memory intelligence"
+            accessibilityLabel="Enable smart memory tools"
             value={aiEnabled}
             onValueChange={setAiEnabled}
             trackColor={{ false: colors.border, true: "#A7F3D0" }}
@@ -62,8 +62,11 @@ export default function OnboardingScreen() {
         </View>
       </Card>
 
-      <Button onPress={continueToDemo}>Enter the demo</Button>
-      <Text style={styles.footnote}>Seeded profiles are fictional. Imported contacts have recognition disabled by default.</Text>
+      <View style={styles.actions}>
+        <Button onPress={() => finish(true)}>Explore with sample people</Button>
+        <Button variant="secondary" onPress={() => finish(false)}>Start with an empty workspace</Button>
+      </View>
+      <Text style={styles.footnote}>Sample profiles are fictional and can be removed at any time. New contacts start with quick matching off.</Text>
     </Screen>
   );
 }
@@ -72,15 +75,16 @@ const styles = StyleSheet.create({
   screen: { paddingTop: spacing.xxl, paddingBottom: spacing.xxl },
   hero: { gap: spacing.md },
   promiseList: { gap: spacing.sm },
-  promiseCard: { flexDirection: "row", borderRadius: radius.md, shadowOpacity: 0 },
+  promiseCard: { flexDirection: "row", borderRadius: radius.md },
   promiseNumber: { width: 38, color: colors.primary, fontSize: 13, fontWeight: "900" },
   promiseCopy: { flex: 1, gap: spacing.xs },
   promiseTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
   promiseBody: { color: colors.inkMuted, fontSize: 14, lineHeight: 20 },
-  aiCard: { backgroundColor: "#F0EFFF", borderColor: "#D9D6FE", shadowOpacity: 0 },
+  aiCard: { backgroundColor: "#F0EFFF", borderColor: "#D9D6FE" },
   switchRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
   switchCopy: { flex: 1, gap: spacing.xs },
   switchTitle: { color: colors.ink, fontSize: 16, fontWeight: "800" },
   switchBody: { color: colors.inkMuted, fontSize: 13, lineHeight: 19 },
   footnote: { color: colors.inkMuted, textAlign: "center", fontSize: 12, lineHeight: 18 },
+  actions: { gap: spacing.sm },
 });

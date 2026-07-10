@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Alert, StyleSheet, Switch, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { StyleSheet, Switch, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Avatar, Body, Button, Card, DetailRow, Divider, ErrorBanner, Pill, Screen, Title } from "@/components/ui";
+import type { Memory } from "@context/shared";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Avatar, Body, Button, Card, DetailRow, Divider, EmptyState, ErrorBanner, Pill, Screen, SectionHeader, Title } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
 import { displayDate, relativeDate } from "@/lib/date";
 import { suggestTopics } from "@/lib/api";
@@ -15,67 +17,76 @@ function singleParam(value: string | string[] | undefined): string | undefined {
 export default function ContactScreen() {
   const params = useLocalSearchParams<{ id?: string | string[]; recognized?: string | string[] }>();
   const contactId = singleParam(params.id);
-  const wasRecognized = singleParam(params.recognized) === "1";
+  const wasMatched = singleParam(params.recognized) === "1";
   const router = useRouter();
   const contact = useAppStore((state) => state.contacts.find((item) => item.id === contactId));
   const event = useAppStore((state) => state.events.find((item) => item.id === state.currentEventId));
   const aiEnabled = useAppStore((state) => state.aiEnabled);
+  const setConversationTopics = useAppStore((state) => state.setConversationTopics);
   const setRecognitionEnabled = useAppStore((state) => state.setRecognitionEnabled);
+  const deleteMemory = useAppStore((state) => state.deleteMemory);
   const deleteContact = useAppStore((state) => state.deleteContact);
-  const [topics, setTopics] = useState(contact?.conversationTopics ?? []);
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [error, setError] = useState<string>();
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [confirmPersonDelete, setConfirmPersonDelete] = useState(false);
+  const [pendingMemory, setPendingMemory] = useState<Memory>();
+  const sortedTimeline = useMemo(
+    () => [...(contact?.timeline ?? [])].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt)),
+    [contact?.timeline],
+  );
 
   if (!contact) {
     return (
       <Screen>
-        <Card><Body>This person is no longer in your relationship database.</Body></Card>
-        <Button onPress={() => router.replace("/home")}>Back to event</Button>
+        <EmptyState
+          action={<Button onPress={() => router.replace("/home")}>Return to event</Button>}
+          body="It may have been deleted on this device."
+          title="This person is no longer available"
+        />
       </Screen>
     );
   }
 
   const refreshTopics = async () => {
     if (!aiEnabled) {
-      setError("Enable OpenAI memory intelligence in Privacy & data first.");
+      setError("Turn on smart memory tools in Privacy & data to generate new prompts. Existing saved prompts remain available.");
       return;
     }
     setError(undefined);
     setLoadingTopics(true);
     try {
-      setTopics(await suggestTopics(contact, event));
+      const nextTopics = await suggestTopics(contact, event);
+      setConversationTopics(contact.id, nextTopics);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not refresh topics.");
+      setError(caught instanceof Error ? caught.message : "Could not refresh conversation prompts.");
     } finally {
       setLoadingTopics(false);
     }
   };
 
-  const confirmDelete = () => {
-    Alert.alert(
-      `Delete ${contact.displayName}?`,
-      "This removes their timeline and local recognition template from this device.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            void deleteFaceTemplate(contact.id);
-            deleteContact(contact.id);
-            router.replace("/home");
-          },
-        },
-      ],
-    );
+  const removePerson = async () => {
+    setDeleteBusy(true);
+    setError(undefined);
+    try {
+      await deleteFaceTemplate(contact.id);
+      deleteContact(contact.id);
+      setConfirmPersonDelete(false);
+      router.replace("/home");
+    } catch {
+      setError("Context could not remove this person’s secure matching data. Nothing was deleted; try again.");
+      setConfirmPersonDelete(false);
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   return (
     <Screen contentContainerStyle={styles.screen}>
-      {wasRecognized ? (
+      {wasMatched ? (
         <View style={styles.recognizedBanner}>
-          <Pill tone="safe">Matched inside this event</Pill>
-          <Text style={styles.recognizedText}>The camera capture has already been discarded.</Text>
+          <Pill tone="safe">Matched by an event badge</Pill>
+          <Text style={styles.recognizedText}>The badge was checked only against quick-match people in {event?.name ?? "the active event"}.</Text>
         </View>
       ) : null}
 
@@ -83,74 +94,116 @@ export default function ContactScreen() {
         <Avatar name={contact.displayName} size={72} />
         <View style={styles.identityCopy}>
           <Title compact>{contact.displayName}</Title>
-          <Text style={styles.role}>{[contact.role, contact.company].filter(Boolean).join(" · ")}</Text>
+          <Text style={styles.role}>{[contact.role, contact.company].filter(Boolean).join(" · ") || "Saved relationship"}</Text>
         </View>
+        <Button
+          accessibilityLabel={`Edit ${contact.displayName}`}
+          onPress={() => router.push({ pathname: "/contact/edit/[id]", params: { id: contact.id } })}
+          style={styles.editButton}
+          variant="secondary"
+        >
+          Edit
+        </Button>
       </View>
 
       <Card style={styles.profileCard}>
         <DetailRow label="Met" value={contact.metAt} />
-        <DetailRow label="Last spoke" value={relativeDate(contact.lastSpokeAt)} />
+        <DetailRow label="Last spoke" value={contact.lastSpokeAt ? `${relativeDate(contact.lastSpokeAt)} · ${displayDate(contact.lastSpokeAt)}` : undefined} />
         <DetailRow label="Company" value={contact.company} />
         <DetailRow label="Last discussed" value={contact.lastDiscussed} />
         <DetailRow label="Recent update" value={contact.recentUpdate} />
+        {!contact.metAt && !contact.lastSpokeAt && !contact.company && !contact.lastDiscussed && !contact.recentUpdate
+          ? <Body muted>Add a few details to make the next refresher more useful.</Body>
+          : null}
       </Card>
 
       <Card style={styles.askCard}>
         <View style={styles.sectionRow}>
-          <View>
+          <View style={styles.flex}>
             <Text style={styles.sectionTitle}>Ask about</Text>
-            <Text style={styles.sectionHint}>Grounded in this person’s saved context</Text>
+            <Text style={styles.sectionHint}>Grounded only in this person’s saved context</Text>
           </View>
-          <Button variant="quiet" loading={loadingTopics} onPress={refreshTopics} style={styles.smallButton}>Refresh</Button>
+          <Button loading={loadingTopics} onPress={refreshTopics} style={styles.smallButton} variant="quiet">Refresh</Button>
         </View>
-        {topics.length ? topics.map((topic) => (
+        {contact.conversationTopics.length ? contact.conversationTopics.map((topic) => (
           <View key={topic} style={styles.topicRow}>
             <Text style={styles.topicDot}>•</Text>
             <Text style={styles.topicText}>{topic}</Text>
           </View>
-        )) : <Body muted>No prompts yet. Add a memory or refresh with AI.</Body>}
+        )) : <Body muted>No prompts yet. Add a memory, edit the profile, or generate prompts with smart tools.</Body>}
       </Card>
 
       <ErrorBanner message={error} />
-      <Button onPress={() => router.push({ pathname: "/memory/[contactId]", params: { contactId: contact.id } })}>
-        Add memory after the conversation
-      </Button>
+      <Button onPress={() => router.push({ pathname: "/memory/[contactId]", params: { contactId: contact.id } })}>Add a memory</Button>
 
-      <View style={styles.sectionRow}>
-        <View style={styles.flex}>
-          <Text style={styles.sectionTitle}>Timeline</Text>
-          <Text style={styles.sectionHint}>Confirmed memories only</Text>
-        </View>
-        <Pill>{contact.timeline.length}</Pill>
-      </View>
-      {contact.timeline.length ? contact.timeline.map((memory) => (
+      <SectionHeader subtitle="Only notes you deliberately confirmed" title={`Timeline · ${sortedTimeline.length}`} />
+      {sortedTimeline.length ? sortedTimeline.map((memory) => (
         <Card key={memory.id} style={styles.timelineCard}>
-          <Text style={styles.timelineDate}>{displayDate(memory.occurredAt)}</Text>
+          <View style={styles.timelineTopline}>
+            <Text style={styles.timelineDate}>{displayDate(memory.occurredAt)}</Text>
+            <Button
+              accessibilityLabel={`Delete memory from ${displayDate(memory.occurredAt)}`}
+              onPress={() => setPendingMemory(memory)}
+              style={styles.memoryAction}
+              variant="quiet"
+            >
+              Delete
+            </Button>
+          </View>
           <Text style={styles.timelineSummary}>{memory.summary}</Text>
-          {memory.nextSteps.length ? (
-            <Text style={styles.nextStep}>Next: {memory.nextSteps.join(" · ")}</Text>
+          {memory.nextSteps.length ? <Text style={styles.nextStep}>Next: {memory.nextSteps.join(" · ")}</Text> : null}
+          {memory.tags.length ? (
+            <View style={styles.tagRow}>{memory.tags.map((tag) => <Pill key={tag}>{tag}</Pill>)}</View>
           ) : null}
         </Card>
       )) : (
-        <Card><Body muted>No memories yet. Capture the next useful update after you speak.</Body></Card>
+        <EmptyState
+          action={<Button onPress={() => router.push({ pathname: "/memory/[contactId]", params: { contactId: contact.id } })} variant="secondary">Add the first memory</Button>}
+          body="Capture the next useful update after you speak."
+          title="No memories yet"
+        />
       )}
 
       <Card style={styles.controlCard}>
         <View style={styles.switchRow}>
           <View style={styles.flex}>
-            <Text style={styles.sectionTitle}>Recognition candidate</Text>
-            <Text style={styles.sectionHint}>Applies only when this person is also in the active event.</Text>
+            <Text style={styles.sectionTitle}>Quick badge matching</Text>
+            <Text style={styles.sectionHint}>Works only when this person is also in the active event. It does not enable face recognition.</Text>
           </View>
           <Switch
-            value={contact.recognitionEnabled}
+            accessibilityLabel={`Quick badge matching for ${contact.displayName}`}
             onValueChange={(value) => setRecognitionEnabled(contact.id, value)}
-            trackColor={{ false: colors.border, true: "#A7F3D0" }}
             thumbColor={contact.recognitionEnabled ? colors.success : colors.surface}
+            trackColor={{ false: colors.border, true: "#A7F3D0" }}
+            value={contact.recognitionEnabled}
           />
         </View>
         <Divider />
-        <Button variant="danger" onPress={confirmDelete}>Delete person and template</Button>
+        <Button onPress={() => setConfirmPersonDelete(true)} variant="danger">Delete person and all memories</Button>
       </Card>
+
+      <ConfirmDialog
+        body={`This permanently removes ${contact.displayName}, every saved memory, and any secure quick-match data from this device.`}
+        busy={deleteBusy}
+        confirmLabel="Delete person"
+        destructive
+        onCancel={() => setConfirmPersonDelete(false)}
+        onConfirm={() => { void removePerson(); }}
+        title={`Delete ${contact.displayName}?`}
+        visible={confirmPersonDelete}
+      />
+      <ConfirmDialog
+        body="This removes the selected timeline memory from this device. The person’s remaining profile and memories stay intact."
+        confirmLabel="Delete memory"
+        destructive
+        onCancel={() => setPendingMemory(undefined)}
+        onConfirm={() => {
+          if (pendingMemory) deleteMemory(contact.id, pendingMemory.id);
+          setPendingMemory(undefined);
+        }}
+        title="Delete this memory?"
+        visible={Boolean(pendingMemory)}
+      />
     </Screen>
   );
 }
@@ -158,12 +211,13 @@ export default function ContactScreen() {
 const styles = StyleSheet.create({
   screen: { paddingBottom: spacing.xxl },
   recognizedBanner: { gap: spacing.xs },
-  recognizedText: { color: colors.inkMuted, fontSize: 12 },
-  identity: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  identityCopy: { flex: 1, gap: spacing.xs },
+  recognizedText: { color: colors.inkMuted, fontSize: 12, lineHeight: 18 },
+  identity: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.md },
+  identityCopy: { flex: 1, minWidth: 210, gap: spacing.xs },
   role: { color: colors.inkMuted, fontSize: 15, lineHeight: 21 },
-  profileCard: { shadowOpacity: 0.04 },
-  askCard: { backgroundColor: "#F0EFFF", borderColor: "#D9D6FE", shadowOpacity: 0 },
+  editButton: { minHeight: 42, paddingHorizontal: spacing.md },
+  profileCard: {},
+  askCard: { backgroundColor: colors.primarySoft, borderColor: "#D9D6FE" },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   sectionTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
   sectionHint: { color: colors.inkMuted, fontSize: 12, lineHeight: 17, marginTop: 2 },
@@ -171,11 +225,14 @@ const styles = StyleSheet.create({
   topicRow: { flexDirection: "row", gap: spacing.sm },
   topicDot: { color: colors.primary, fontSize: 18, fontWeight: "900" },
   topicText: { flex: 1, color: colors.ink, fontSize: 15, lineHeight: 22, fontWeight: "600" },
-  timelineCard: { shadowOpacity: 0 },
+  timelineCard: {},
+  timelineTopline: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   timelineDate: { color: colors.primary, fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
   timelineSummary: { color: colors.ink, fontSize: 15, lineHeight: 22, fontWeight: "600" },
   nextStep: { color: colors.inkMuted, fontSize: 13, lineHeight: 19 },
-  controlCard: { marginTop: spacing.md, shadowOpacity: 0 },
+  memoryAction: { minHeight: 36, paddingHorizontal: spacing.sm },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  controlCard: { marginTop: spacing.md },
   switchRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   flex: { flex: 1 },
 });

@@ -6,7 +6,7 @@ export * from "./domain.js";
 
 import type { MemoryDraft } from "./domain.js";
 
-export function createDemoMemoryDraft(transcript: string): MemoryDraft {
+export function createRuleBasedMemoryDraft(transcript: string): MemoryDraft {
   const clean = transcript.trim().replace(/\s+/g, " ");
   const lower = clean.toLowerCase();
   const tags = [

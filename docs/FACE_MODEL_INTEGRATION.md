@@ -1,27 +1,33 @@
-# Reviewed on-device face model integration
+# Biometric model integration gate
 
-The app ships without a biometric model. This is deliberate: model licensing, demographic performance, native preprocessing, and consent UX must be reviewed together. Do not rename the current “Demo adapter” or present it as real face recognition.
+Context currently ships a complete manual-directory and QR-badge event assistant. It does **not** infer identity from camera pixels, and no screen enrolls a face template. This is deliberate: licensing, consent, model performance, native preprocessing, and deletion must be reviewed as one system.
 
-## Required implementation contract
+## Required before implementation
 
-1. Bundle a commercially usable face-detection and face-embedding model inside the native application. No model or weight may be fetched at runtime.
-2. Process enrollment and probe images entirely on-device. Never add a server image or embedding endpoint.
-3. Normalize every embedding to a versioned vector and store it with `saveFaceTemplate()` in platform SecureStore.
-4. At match time, call `filterEventCandidates()` first, load templates only for those candidate IDs, and evaluate them with `evaluateFaceMatch()`.
-5. Delete the captured image in a `finally` block regardless of match, error, or cancellation.
-6. Return only `matched`, `ambiguous`, or `no_match`. Never expose the nearest identity below threshold.
-7. Make model version changes invalidate or explicitly migrate old templates.
+- Choose a model whose license explicitly permits the intended mobile commercial use.
+- Document demographic false-accept/false-reject performance and the evaluation dataset’s limits.
+- Define an explicit enrollment and revocation flow for people the user already knows.
+- Require an active event and per-contact eligibility before loading any template.
+- Keep inference and embeddings on device; do not add a cloud recognition endpoint.
+- Version every template by model and preprocessing pipeline.
+- Reject below-threshold and ambiguous matches; never reveal the nearest identity as a fallback.
+- Delete captures immediately and templates on person/all-data deletion.
+- Provide a non-biometric manual and QR path at all times.
 
-## Acceptance gates
+## Integration seam
 
-- Matching works with airplane mode enabled.
-- Network inspection confirms that images and embeddings never leave the device.
-- A saved contact outside the active event cannot match.
-- A saved contact with recognition disabled cannot match.
-- Unknown faces return `no_match`; close scores return `ambiguous`.
-- Delete person and Delete all data remove all associated SecureStore entries.
-- The app never activates the camera outside the visible memory-assist screen.
-- Evaluate false accepts/false rejects across lighting, skin tones, ages, glasses, and camera quality before any non-fictional demo.
-- Document model source, license, version, input normalization, threshold calibration, and test dataset limitations.
+- `packages/shared/src/matching.ts` implements candidate filtering, cosine similarity, thresholding, and ambiguity margins.
+- `apps/mobile/lib/face-templates.ts` provides native SecureStore/Keychain persistence and intentionally rejects web enrollment.
+- A reviewed adapter must produce normalized embeddings from enrollment and one-shot probe frames.
+- The UI must distinguish “no match,” “ambiguous,” “permission denied,” “model unavailable,” and “person outside event.”
 
-Until every gate passes, use the visible demo selector or QR badge fallback.
+## Acceptance evidence
+
+- Unit tests for dimensions, normalization, model-version mismatch, thresholds, and ambiguity.
+- Native integration tests proving camera/audio cache cleanup on success, error, cancellation, and app backgrounding.
+- Physical-device evaluation across lighting, skin tones, ages, glasses, camera quality, and presentation attacks.
+- Measured false-accept/false-reject rates with a documented release threshold.
+- Verified offline behavior and proof that no face payload reaches the network.
+- Signed legal/privacy review for each launch jurisdiction.
+
+Until every item passes, keep biometric matching disabled and use the finished event directory or QR badges.

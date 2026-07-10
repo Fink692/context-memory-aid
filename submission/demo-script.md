@@ -1,46 +1,45 @@
-# Context — two-minute judge demo
+# Context — two-minute product demo
 
-## Setup before walking on stage
+## Setup
 
-- Open the app on the seeded **OpenAI Memory Hack Night** event.
-- Keep the production demo API health page open in a backup tab: `https://context-memory-api.vercel.app/health`.
-- Confirm the visible demo target is **Jordan**.
-- Have the teammate stand in good light and keep the **Unknown** target available for the safety proof.
-- If camera permissions fail, scan a QR code containing `context://contact/jordan-patel`.
+- Open the sample **OpenAI Memory Hack Night** event.
+- Confirm the API health page reports `rules` or `openai`: `https://context-memory-api.vercel.app/health`.
+- Use Jordan for the refresher and smart-draft flow.
+- Keep smart tools on. Rules mode is enough for typed drafts; OpenAI mode additionally enables voice.
 
 ## Talk track
 
 **0:00–0:15 — The moment**
 
-“You know this face. You know you have spoken before. But the name, the promise, and the story arrive five seconds too late. Context gives you the relationship back at exactly the moment you need it.”
+“You know this person. You know you have spoken before. But the name, the promise, and the story arrive five seconds too late. Context gives you the relationship back when you need it.”
 
 **0:15–0:35 — Establish the boundary**
 
-Show the active event card.
+Show the active event card and its three known people.
 
-“This is not internet face search. Context considers only people I saved, who are also on the attendee list for this event, and only after I deliberately open memory assist.”
+“This is not internet identity search. I select an event, and Context works only with people I deliberately saved inside that attendee boundary.”
 
-**0:35–0:55 — The recognition moment**
+**0:35–0:55 — Recover the relationship**
 
-Point the camera at the teammate and tap **Capture and check locally**.
+Open **Event assistant**, search Jordan, and tap the result. Optionally show the QR-badge tab.
 
-“That capture is already gone. What remains is the context: Jordan Patel, where we met, when we last spoke, what we discussed, and two human conversation openings.”
+“I can browse discreetly or scan a Context badge. Here is Jordan: where we met, when we last spoke, what changed, and two natural ways to continue the relationship.”
 
 **0:55–1:25 — Close the memory loop**
 
-Tap **Add memory** and dictate:
+Tap **Add a memory**, type:
 
-> Jordan accepted a new job in New York and is looking for AI engineers.
+> Jordan accepted a new role in New York and is hiring AI engineers for the developer tooling team.
 
-Show the editable draft and confirm it.
+Tap **Create smart draft**, edit the summary, and confirm it.
 
-“OpenAI transcribes and structures the update, but it does not write to my relationship history. I review the facts, edit the summary, and explicitly confirm.”
+“The service structures the update, but it never writes silently. I review the facts, edit the summary, and explicitly confirm. Without smart tools, I can always save the note exactly as written.”
 
-**1:25–1:42 — Prove the no-match path**
+**1:25–1:42 — Prove control**
 
-Return to memory assist, select **Unknown**, and capture again.
+Delete the new memory, show the confirmation, then cancel or confirm. Open **Privacy & data** and show export, restore, and delete-all controls.
 
-“If the person is not inside this event-scoped relationship set, Context says no match. It does not reveal the nearest identity and it never searches the internet.”
+“Every memory can be removed. The whole workspace can be exported, restored, or erased from this device.”
 
 **1:42–2:00 — End on the category**
 
@@ -48,7 +47,7 @@ Return to memory assist, select **Unknown**, and capture again.
 
 ## Truthful judge Q&A
 
-- **Is the demo doing production face recognition?** No. The prototype visibly labels its deterministic camera/QR adapter. The on-device template store, event filter, threshold logic, and deletion lifecycle exist; a licensed and bias-evaluated embedding model remains behind documented release gates.
-- **What goes to OpenAI?** The dictated note and the selected contact’s saved profile/timeline. Face images, embeddings, and unrelated contacts never go to the API.
-- **What happens without internet?** Relationship data and candidate filtering remain local. The current AI transcription/extraction step requires connectivity; manual notes remain the future offline fallback.
-- **Why event-scoped?** It sharply reduces candidate count, accidental matches, and the social discomfort of continuous ambient scanning.
+- **Does it identify faces today?** No. The finished workflow uses event search and QR badges. Biometric inference stays disabled until the licensed-model, consent, demographic-performance, and native-deletion gates pass.
+- **What goes to OpenAI?** Only after a deliberate smart action: the note and the selected person’s saved context. Matching data and unrelated contacts never go to the memory API.
+- **What works without OpenAI?** Events, search, QR matching, profiles, timelines, manual notes, backups, deletion, and deterministic rules-based drafts. Voice transcription is honestly unavailable in rules mode.
+- **Why event-scoped?** It reduces accidental disclosure, cognitive overload, and the discomfort of ambient scanning while delivering the memory benefit.

@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 const MODEL_VERSION = "unconfigured-local-model-v1";
 
@@ -14,6 +15,9 @@ export interface StoredFaceTemplate {
 }
 
 export async function saveFaceTemplate(contactId: string, embedding: number[]): Promise<void> {
+  if (Platform.OS === "web") {
+    throw new Error("Secure biometric template storage is not available on web.");
+  }
   if (embedding.length < 16 || embedding.length > 2_048 || embedding.some((value) => !Number.isFinite(value))) {
     throw new Error("Face template is invalid.");
   }
@@ -28,6 +32,7 @@ export async function saveFaceTemplate(contactId: string, embedding: number[]): 
 }
 
 export async function loadFaceTemplate(contactId: string): Promise<StoredFaceTemplate | null> {
+  if (Platform.OS === "web") return null;
   const raw = await SecureStore.getItemAsync(keyFor(contactId));
   if (!raw) return null;
   try {
@@ -40,5 +45,6 @@ export async function loadFaceTemplate(contactId: string): Promise<StoredFaceTem
 }
 
 export async function deleteFaceTemplate(contactId: string): Promise<void> {
+  if (Platform.OS === "web") return;
   await SecureStore.deleteItemAsync(keyFor(contactId));
 }

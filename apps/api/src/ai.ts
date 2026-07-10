@@ -1,7 +1,7 @@
 import {
   MemoryDraftSchema,
   TopicSuggestionSchema,
-  createDemoMemoryDraft,
+  createRuleBasedMemoryDraft,
   type ContactContext,
   type Event,
   type MemoryDraft,
@@ -63,15 +63,7 @@ export class MemoryAiService {
     }
   }
 
-  async transcribe(file: File): Promise<{ transcript: string; provider: "openai" | "demo" }> {
-    if (this.config.demoMode) {
-      return {
-        transcript:
-          "Alex accepted a new job in New York and is looking for AI engineers.",
-        provider: "demo",
-      };
-    }
-
+  async transcribe(file: File): Promise<{ transcript: string; provider: "openai" }> {
     if (!this.client) throw new Error("AI service is not configured.");
     const result = await this.client.audio.transcriptions.create({
       file,
@@ -86,7 +78,7 @@ export class MemoryAiService {
     contact: ContactContext;
     event?: Pick<Event, "id" | "name" | "startsAt">;
   }): Promise<MemoryDraft> {
-    if (this.config.demoMode) return createDemoMemoryDraft(input.transcript);
+    if (this.config.aiMode === "rules") return createRuleBasedMemoryDraft(input.transcript);
     if (!this.client) throw new Error("AI service is not configured.");
 
     const response = await this.client.responses.create({
@@ -115,7 +107,7 @@ export class MemoryAiService {
     contact: ContactContext;
     event?: Pick<Event, "id" | "name" | "startsAt">;
   }): Promise<string[]> {
-    if (this.config.demoMode) {
+    if (this.config.aiMode === "rules") {
       const preferred = input.contact.conversationTopics.slice(0, 3);
       return preferred.length ? preferred : ["What has changed since you last spoke?"];
     }

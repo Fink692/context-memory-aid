@@ -17,6 +17,11 @@ const allowedAudioTypes = new Set([
   "audio/x-m4a",
 ]);
 const maxAudioBytes = 10 * 1024 * 1024;
+const maxJsonBytes = 64 * 1024;
+
+function actualJsonBytes(body: string): number {
+  return new TextEncoder().encode(body).byteLength;
+}
 
 interface RateBucket {
   count: number;
@@ -51,14 +56,22 @@ export function createApp(config: ApiConfig) {
     if (bucket.count > 30) {
       return c.json({ error: "Too many requests. Try again shortly." }, 429);
     }
+    if (rateBuckets.size > 1_000) {
+      for (const [bucketKey, candidate] of rateBuckets) {
+        if (candidate.resetAt <= now) rateBuckets.delete(bucketKey);
+      }
+    }
     await next();
   });
 
   app.get("/health", (c) =>
-    c.json({ ok: true, aiMode: config.demoMode ? "demo" : "openai" }),
+    c.json({ ok: true, aiMode: config.aiMode, version: "0.2.0" }),
   );
 
   app.post("/ai/transcribe", async (c) => {
+    if (config.aiMode !== "openai") {
+      return c.json({ error: "Voice transcription requires OpenAI mode. Typed notes and rules-based drafts are still available." }, 503);
+    }
     const body = await c.req.parseBody();
     const audio = body.audio;
     if (!(audio instanceof File)) {
@@ -74,7 +87,17 @@ export function createApp(config: ApiConfig) {
   });
 
   app.post("/ai/extract-memory", async (c) => {
-    const parsed = MemoryExtractionRequestSchema.safeParse(await c.req.json());
+    const contentLength = Number(c.req.header("content-length") ?? 0);
+    if (contentLength > maxJsonBytes) return c.json({ error: "Memory request is too large." }, 413);
+    const rawBody = await c.req.text();
+    if (actualJsonBytes(rawBody) > maxJsonBytes) return c.json({ error: "Memory request is too large." }, 413);
+    let body: unknown;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return c.json({ error: "Request body must be valid JSON." }, 400);
+    }
+    const parsed = MemoryExtractionRequestSchema.safeParse(body);
     if (!parsed.success) {
       return c.json({ error: "Invalid memory request." }, 400);
     }
@@ -86,7 +109,17 @@ export function createApp(config: ApiConfig) {
   });
 
   app.post("/ai/suggest-topics", async (c) => {
-    const parsed = TopicSuggestionRequestSchema.safeParse(await c.req.json());
+    const contentLength = Number(c.req.header("content-length") ?? 0);
+    if (contentLength > maxJsonBytes) return c.json({ error: "Topic request is too large." }, 413);
+    const rawBody = await c.req.text();
+    if (actualJsonBytes(rawBody) > maxJsonBytes) return c.json({ error: "Topic request is too large." }, 413);
+    let body: unknown;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return c.json({ error: "Request body must be valid JSON." }, 400);
+    }
+    const parsed = TopicSuggestionRequestSchema.safeParse(body);
     if (!parsed.success) {
       return c.json({ error: "Invalid topic request." }, 400);
     }

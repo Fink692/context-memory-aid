@@ -36,6 +36,7 @@ export function Screen({
         {...props}
         contentContainerStyle={[styles.content, contentContainerStyle]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {children}
       </ScrollView>
@@ -81,6 +82,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled || loading), busy: loading }}
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.button,
@@ -114,10 +116,10 @@ export function Avatar({ name, size = 52 }: { name: string; size?: number }) {
   );
 }
 
-export function Pill({ children, tone = "neutral" }: PropsWithChildren<{ tone?: "neutral" | "safe" | "demo" }>) {
+export function Pill({ children, tone = "neutral" }: PropsWithChildren<{ tone?: "neutral" | "safe" | "warning" }>) {
   return (
-    <View style={[styles.pill, tone === "safe" && styles.pillSafe, tone === "demo" && styles.pillDemo]}>
-      <Text style={[styles.pillText, tone === "safe" && styles.pillSafeText, tone === "demo" && styles.pillDemoText]}>
+    <View style={[styles.pill, tone === "safe" && styles.pillSafe, tone === "warning" && styles.pillWarning]}>
+      <Text style={[styles.pillText, tone === "safe" && styles.pillSafeText, tone === "warning" && styles.pillWarningText]}>
         {children}
       </Text>
     </View>
@@ -143,15 +145,63 @@ export function ErrorBanner({ message }: { message: string | undefined }) {
   );
 }
 
+export function SuccessBanner({ message }: { message: string | undefined }) {
+  if (!message) return null;
+  return (
+    <View accessibilityRole="alert" style={styles.successBanner}>
+      <Text style={styles.successText}>{message}</Text>
+    </View>
+  );
+}
+
+export function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action?: ReactNode;
+}) {
+  return (
+    <Card style={styles.emptyState}>
+      <View style={styles.emptyMark}><Text style={styles.emptyMarkText}>C</Text></View>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptyBody}>{body}</Text>
+      {action}
+    </Card>
+  );
+}
+
+export function SectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionCopy}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+      </View>
+      {action}
+    </View>
+  );
+}
+
 export function Divider() {
   return <View style={styles.divider} />;
 }
 
 const buttonStyles = StyleSheet.create({
-  primary: { backgroundColor: colors.primary },
+  primary: { backgroundColor: colors.primary, borderColor: colors.primary, borderWidth: 1 },
   secondary: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
   quiet: { backgroundColor: "transparent" },
-  danger: { backgroundColor: "#FEE4E2", borderColor: "#FECDCA", borderWidth: 1 },
+  danger: { backgroundColor: colors.dangerSoft, borderColor: "#FECDCA", borderWidth: 1 },
 });
 
 const buttonTextStyles = StyleSheet.create({
@@ -162,9 +212,12 @@ const buttonTextStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.canvas },
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
   flex: { flex: 1 },
-  content: { width: "100%", maxWidth: 960, alignSelf: "center", padding: spacing.lg, gap: spacing.md },
+  content: { width: "100%", maxWidth: 920, alignSelf: "center", padding: spacing.lg, gap: spacing.md },
   eyebrow: {
     color: colors.primary,
     fontSize: 12,
@@ -191,25 +244,36 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   buttonPressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
   buttonDisabled: { opacity: 0.48 },
   buttonText: { fontSize: 16, lineHeight: 22, fontWeight: "700" },
-  avatar: { alignItems: "center", justifyContent: "center", backgroundColor: "#E8E7FF" },
+  avatar: { alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   avatarText: { color: colors.primaryDark, fontWeight: "800" },
   pill: { alignSelf: "flex-start", borderRadius: radius.pill, backgroundColor: colors.surfaceAlt, paddingHorizontal: 10, paddingVertical: 5 },
   pillText: { color: colors.inkMuted, fontSize: 12, fontWeight: "700" },
-  pillSafe: { backgroundColor: "#DDF7EC" },
+  pillSafe: { backgroundColor: colors.successSoft },
   pillSafeText: { color: colors.success },
-  pillDemo: { backgroundColor: "#FFF1D6" },
-  pillDemoText: { color: colors.warning },
+  pillWarning: { backgroundColor: colors.warningSoft },
+  pillWarningText: { color: colors.warning },
   detailRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, paddingVertical: 7 },
   detailLabel: { width: 96, color: colors.inkMuted, fontSize: 13, fontWeight: "700" },
   detailValue: { flex: 1, color: colors.ink, fontSize: 15, lineHeight: 21, fontWeight: "500" },
-  errorBanner: { borderRadius: radius.md, padding: spacing.md, backgroundColor: "#FEE4E2", borderColor: "#FECDCA", borderWidth: 1 },
+  errorBanner: { borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.dangerSoft, borderColor: "#FECDCA", borderWidth: 1 },
   errorText: { color: colors.danger, fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  successBanner: { borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.successSoft, borderColor: "#B7E4D2", borderWidth: 1 },
+  successText: { color: colors.success, fontSize: 14, lineHeight: 20, fontWeight: "700" },
+  emptyState: { alignItems: "flex-start", padding: spacing.lg },
+  emptyMark: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceAlt },
+  emptyMarkText: { color: colors.primary, fontSize: 17, fontWeight: "900" },
+  emptyTitle: { color: colors.ink, fontSize: 18, lineHeight: 24, fontWeight: "800" },
+  emptyBody: { color: colors.inkMuted, fontSize: 14, lineHeight: 21 },
+  sectionHeader: { width: "100%", flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.md },
+  sectionCopy: { flex: 1, minWidth: 0 },
+  sectionTitle: { color: colors.ink, fontSize: 20, lineHeight: 26, fontWeight: "800" },
+  sectionSubtitle: { color: colors.inkMuted, fontSize: 13, lineHeight: 18, marginTop: 2 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.sm },
 });

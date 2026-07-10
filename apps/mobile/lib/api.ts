@@ -8,7 +8,14 @@ import {
 } from "@context/shared";
 import { Platform } from "react-native";
 
-const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787").replace(/\/$/, "");
+const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? "https://context-memory-api.vercel.app").replace(/\/$/, "");
+const requestTimeoutMs = 15_000;
+
+export interface ApiHealth {
+  ok: true;
+  aiMode: "openai" | "rules";
+  version?: string;
+}
 
 function validateApiUrl(): void {
   const isLocal = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(apiUrl);
@@ -27,9 +34,38 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
-async function postJson(path: string, body: unknown): Promise<unknown> {
+async function request(path: string, init?: RequestInit): Promise<Response> {
   validateApiUrl();
-  const response = await fetch(`${apiUrl}${path}`, {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+  try {
+    return await fetch(`${apiUrl}${path}`, { ...init, signal: controller.signal });
+  } catch (caught) {
+    if (caught instanceof Error && caught.name === "AbortError") {
+      throw new Error("Context could not reach the memory service in time. Check your connection and try again.");
+    }
+    throw new Error("Context could not reach the memory service. Check your connection and try again.");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function getApiHealth(): Promise<ApiHealth> {
+  const response = await request("/health");
+  if (!response.ok) throw new Error(await readError(response));
+  const raw = await response.json() as { ok?: boolean; aiMode?: string; version?: string };
+  if (raw.ok !== true || !["openai", "rules", "demo"].includes(raw.aiMode ?? "")) {
+    throw new Error("The memory service returned an unexpected health response.");
+  }
+  return {
+    ok: true,
+    aiMode: raw.aiMode === "openai" ? "openai" : "rules",
+    ...(raw.version ? { version: raw.version } : {}),
+  };
+}
+
+async function postJson(path: string, body: unknown): Promise<unknown> {
+  const response = await request(path, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -38,7 +74,7 @@ async function postJson(path: string, body: unknown): Promise<unknown> {
   return response.json();
 }
 
-export async function transcribeAudio(uri: string): Promise<{ transcript: string; provider: "openai" | "demo" }> {
+export async function transcribeAudio(uri: string): Promise<{ transcript: string; provider: "openai" }> {
   validateApiUrl();
   const form = new FormData();
   if (Platform.OS === "web") {
@@ -51,9 +87,9 @@ export async function transcribeAudio(uri: string): Promise<{ transcript: string
       type: uri.endsWith(".wav") ? "audio/wav" : "audio/m4a",
     } as unknown as Blob);
   }
-  const response = await fetch(`${apiUrl}/ai/transcribe`, { method: "POST", body: form });
+  const response = await request("/ai/transcribe", { method: "POST", body: form });
   if (!response.ok) throw new Error(await readError(response));
-  return response.json() as Promise<{ transcript: string; provider: "openai" | "demo" }>;
+  return response.json() as Promise<{ transcript: string; provider: "openai" }>;
 }
 
 function eventContext(event?: Event) {

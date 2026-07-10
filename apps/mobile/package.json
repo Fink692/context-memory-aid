@@ -1,6 +1,6 @@
 {
   "name": "@context/mobile",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -11,6 +11,7 @@
     "build:preview:android": "npx eas-cli build --platform android --profile preview",
     "build:preview:ios": "npx eas-cli build --platform ios --profile preview",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "export:web": "expo export --platform web"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "expo-router": "~57.0.4",
     "expo-secure-store": "~57.0.0",
     "expo-sharing": "~57.0.3",
+    "expo-splash-screen": "~57.0.2",
     "expo-status-bar": "~57.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -39,6 +41,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
   }
 }

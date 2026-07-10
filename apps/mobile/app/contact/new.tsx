@@ -2,13 +2,15 @@ import { useState } from "react";
 import { StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { Contact } from "@context/shared";
-import { Body, Button, Card, ErrorBanner, Screen } from "@/components/ui";
+import { Body, Button, Card, EmptyState, ErrorBanner, Pill, Screen } from "@/components/ui";
 import { colors, radius, spacing } from "@/constants/theme";
 import { useAppStore } from "@/store/app-store";
 
 export default function NewContactScreen() {
   const router = useRouter();
+  const contacts = useAppStore((state) => state.contacts);
   const addContact = useAppStore((state) => state.addContact);
+  const event = useAppStore((state) => state.events.find((item) => item.id === state.currentEventId));
   const [displayName, setDisplayName] = useState("");
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
@@ -20,6 +22,10 @@ export default function NewContactScreen() {
     const name = displayName.trim();
     if (!name) {
       setError("Name is required.");
+      return;
+    }
+    if (contacts.some((contact) => contact.displayName.trim().toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      setError("A person with this name is already saved. Open their existing profile instead.");
       return;
     }
     const id = `contact-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now().toString(36)}`;
@@ -37,9 +43,23 @@ export default function NewContactScreen() {
     router.replace({ pathname: "/contact/[id]", params: { id } });
   };
 
+  if (!event) {
+    return (
+      <Screen>
+        <EmptyState
+          action={<Button onPress={() => router.replace("/events")}>Create an event</Button>}
+          body="People are added inside an event so Context can keep the active boundary clear."
+          title="Create an event first"
+        />
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
-      <Body muted>Save only people you already know. Recognition stays off unless you deliberately enable it.</Body>
+      <Pill tone="safe">Adding to {event.name}</Pill>
+      <Text style={styles.title}>Save someone you already know.</Text>
+      <Body muted>Quick badge matching stays off unless you deliberately enable it.</Body>
       <ErrorBanner message={error} />
       <View style={styles.field}>
         <Text style={styles.label}>Name</Text>
@@ -60,22 +80,23 @@ export default function NewContactScreen() {
       <Card style={styles.toggleCard}>
         <View style={styles.switchRow}>
           <View style={styles.flex}>
-            <Text style={styles.toggleTitle}>Include in deliberate recognition</Text>
-            <Text style={styles.toggleBody}>Use only with appropriate permission. A real face template is not created by this form; hackathon demo/QR matching can use the contact record.</Text>
+            <Text style={styles.toggleTitle}>Enable quick badge matching</Text>
+            <Text style={styles.toggleBody}>This allows event-scoped Context QR badges. It does not create a face template or identify anyone from camera pixels.</Text>
           </View>
-          <Switch value={recognitionEnabled} onValueChange={setRecognitionEnabled} />
+          <Switch accessibilityLabel="Enable quick badge matching" value={recognitionEnabled} onValueChange={setRecognitionEnabled} />
         </View>
       </Card>
-      <Button onPress={save}>Save to this event</Button>
+      <Button onPress={save}>Save to {event.name}</Button>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   field: { gap: spacing.xs },
+  title: { color: colors.ink, fontSize: 28, lineHeight: 34, fontWeight: "800" },
   label: { color: colors.ink, fontSize: 14, fontWeight: "800" },
   input: { minHeight: 50, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: spacing.md, color: colors.ink, fontSize: 16 },
-  toggleCard: { shadowOpacity: 0 },
+  toggleCard: {},
   switchRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   flex: { flex: 1 },
   toggleTitle: { color: colors.ink, fontSize: 15, fontWeight: "800" },

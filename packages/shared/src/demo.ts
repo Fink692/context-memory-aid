@@ -71,12 +71,12 @@ export const seededEvents: Event[] = [
     id: eventId,
     name: "OpenAI Memory Hack Night",
     startsAt: "2026-07-09T23:00:00.000Z",
-    locationLabel: "Demo networking floor",
+    locationLabel: "Atrium networking floor",
     attendeeContactIds: ["jordan-patel", "alex-morgan", "maya-chen"],
   },
 ];
 
-export function createDemoMemoryDraft(transcript: string): MemoryDraft {
+export function createRuleBasedMemoryDraft(transcript: string): MemoryDraft {
   const clean = transcript.trim().replace(/\s+/g, " ");
   const lower = clean.toLowerCase();
   const tags = [

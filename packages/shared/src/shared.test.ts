@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  createDemoMemoryDraft,
+  createRuleBasedMemoryDraft,
   evaluateFaceMatch,
   filterEventCandidates,
   parseAttendeeCsv,
   seededContacts,
   seededEvents,
 } from "./index";
-import { createDemoMemoryDraft as createVercelMemoryDraft } from "./vercel";
+import { createRuleBasedMemoryDraft as createVercelMemoryDraft } from "./vercel";
 
 describe("event-bounded matching", () => {
   it("excludes saved contacts who are not attending", () => {
@@ -57,15 +57,21 @@ describe("CSV import", () => {
     expect(result.contacts).toEqual([]);
     expect(result.errors[0]).toContain("not a valid date");
   });
+
+  it("rejects an unclosed quoted field", () => {
+    const result = parseAttendeeCsv('name,notes\nJordan,"unfinished');
+    expect(result.contacts).toEqual([]);
+    expect(result.errors).toEqual(["CSV contains an unclosed quoted field."]);
+  });
 });
 
-describe("demo fallback", () => {
+describe("rules fallback", () => {
   it("stays identical in the app and Vercel entry points", () => {
     const transcript =
       "Alex accepted a new job in New York and is hiring AI engineers.";
 
     expect(createVercelMemoryDraft(transcript)).toEqual(
-      createDemoMemoryDraft(transcript),
+      createRuleBasedMemoryDraft(transcript),
     );
   });
 });

@@ -2,61 +2,64 @@
 
 ## API on Vercel
 
-The repository root is the Vercel project root. `vercel.json` packages the Hono adapter at `apps/api/api/index.ts` and routes every request to it.
+The repository root is the Vercel project root. `vercel.json` packages the Hono adapter at `apps/api/api/index.ts` and routes requests to it.
 
-Deploy deterministic demo mode:
+Rules mode requires no secret and never fakes transcription:
+
+```dotenv
+AI_MODE=rules
+ALLOWED_ORIGINS=http://localhost:8081,https://your-web-app.example
+```
+
+OpenAI mode requires server-only credentials:
+
+```dotenv
+AI_MODE=openai
+OPENAI_API_KEY=your_server_side_key
+OPENAI_TEXT_MODEL=gpt-5-mini
+OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe
+ALLOWED_ORIGINS=http://localhost:8081,https://your-web-app.example
+```
+
+Deploy and validate:
 
 ```powershell
 npm run deploy:api
-```
-
-Deploy with OpenAI enabled by setting these server-only Vercel environment variables and redeploying:
-
-```text
-OPENAI_API_KEY
-AI_DEMO_MODE=false
-OPENAI_TEXT_MODEL=gpt-5-mini
-OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe
-ALLOWED_ORIGINS=https://your-web-preview.example
-```
-
-Never create an `EXPO_PUBLIC_OPENAI_API_KEY` variable. The mobile app receives only the public HTTPS API URL.
-
-Production demo API: `https://context-memory-api.vercel.app`
-
-Validate a deployment:
-
-```powershell
 Invoke-RestMethod https://context-memory-api.vercel.app/health
 ```
 
-The response must be `{ "ok": true, "aiMode": "demo" }` or `{ "ok": true, "aiMode": "openai" }`.
+The response must report `aiMode` as `rules` or `openai`. Never create an `EXPO_PUBLIC_OPENAI_API_KEY` variable.
 
 ## Expo preview build
 
-The `preview` profile in `apps/mobile/eas.json` creates an internally distributed Android APK and an iOS ad hoc build. The `preview-simulator` profile creates an iOS Simulator build.
+`apps/mobile/eas.json` contains internal-distribution profiles and points previews to the deployed HTTPS API.
 
-Prerequisites:
+```powershell
+cd apps/mobile
+npx eas-cli login
+npx eas-cli init
+npx eas-cli device:create
+npm run build:preview:ios
+```
 
-1. Sign in with `npx eas-cli login`.
-2. Run `npx eas-cli init` once inside `apps/mobile` to attach the Expo project ID.
-3. Create the EAS `preview` environment variable `EXPO_PUBLIC_API_URL` using the deployed HTTPS API URL.
-4. For iOS hardware, register the device with `npx eas-cli device:create` before building.
-
-Build commands:
+Android:
 
 ```powershell
 cd apps/mobile
 npm run build:preview:android
-npm run build:preview:ios
 ```
+
+Commit the Expo project ID added by `eas init` before building because `cli.requireCommit` is enabled.
 
 ## Release gates
 
 - `npm run verify`
-- `npx expo-doctor` from `apps/mobile`
+- `cd apps/mobile; npx expo-doctor`
 - `npm --workspace @context/mobile run export:web`
 - Public `/health` responds over HTTPS.
-- Preview app reaches `/health`, transcribes a note, and saves a confirmed draft.
-- Unknown/demo target returns a no-match state.
-- Delete person and Delete all data remove the expected local data.
+- Manual typed note saves with smart tools off.
+- Rules-mode draft is editable and requires confirmation.
+- OpenAI-mode transcription is tested only when a real key is configured.
+- Event creation, switching, import, duplicate handling, and removal pass.
+- Backup export/restore, person deletion, memory deletion, and delete-all pass.
+- Camera and microphone permissions plus lifecycle cleanup pass on signed physical-device builds.

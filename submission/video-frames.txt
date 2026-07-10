@@ -1,0 +1,11 @@
+file 'screenshots/pitch-1.png'
+duration 12
+file 'screenshots/pitch-2.png'
+duration 12
+file 'screenshots/pitch-3.png'
+duration 18
+file 'screenshots/pitch-4.png'
+duration 16
+file 'screenshots/pitch-5.png'
+duration 17
+file 'screenshots/pitch-5.png'

@@ -3,16 +3,16 @@ const path = require("node:path");
 const playwrightPackage = process.env.PLAYWRIGHT_PATH || "playwright";
 const { chromium } = require(playwrightPackage);
 
-const baseUrl = process.env.CAPTURE_BASE_URL || "http://127.0.0.1:4173";
+const baseUrl = process.env.CAPTURE_BASE_URL || "http://127.0.0.1:8081";
 const outputDir = process.env.CAPTURE_OUTPUT_DIR || path.resolve("submission/screenshots");
 const edgePath = process.env.EDGE_PATH || "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 
 const shots = [
-  ["onboarding", "app-1-onboarding.png"],
-  ["home", "app-2-home.png"],
-  ["contact/jordan-patel", "app-3-profile.png"],
-  ["memory/jordan-patel", "app-4-memory.png"],
-  ["settings", "app-5-privacy.png"],
+  ["home", "app-2-home.png", "Walk in already remembering."],
+  ["recognize", "app-3-assistant.png", "Who are you about to meet?"],
+  ["contact/jordan-patel", "app-4-profile.png", "Jordan Patel"],
+  ["memory/jordan-patel", "app-5-memory.png", "What changed with Jordan?"],
+  ["settings", "app-6-privacy.png", "Your data"],
 ];
 
 (async () => {
@@ -24,17 +24,18 @@ const shots = [
   });
   const page = await context.newPage();
 
-  await page.addInitScript(() => {
-    // Enable the explicitly consented AI state for judge-facing screenshots.
-    // Zustand merges these persisted fields with the seeded contact/event state.
-    localStorage.setItem(
-      "context-memory-store-v1",
-      JSON.stringify({ state: { hasSeenOnboarding: true, aiEnabled: true }, version: 0 }),
-    );
-  });
+  await page.goto(`${baseUrl}/onboarding`, { waitUntil: "networkidle" });
+  await page.getByText("Your memory, right when it matters.").waitFor();
+  await page.evaluate(() => document.fonts?.ready);
+  await page.screenshot({ path: path.join(outputDir, "app-1-onboarding.png"), fullPage: false });
 
-  for (const [route, filename] of shots) {
+  await page.getByLabel("Enable smart memory tools").click();
+  await page.getByText("Explore with sample people").click();
+  await page.getByText("Walk in already remembering.").waitFor();
+
+  for (const [route, filename, readyText] of shots) {
     await page.goto(`${baseUrl}/${route}`, { waitUntil: "networkidle" });
+    await page.getByText(readyText, { exact: true }).first().waitFor();
     await page.evaluate(() => document.fonts?.ready);
     await page.waitForTimeout(600);
     await page.screenshot({ path: path.join(outputDir, filename), fullPage: false });

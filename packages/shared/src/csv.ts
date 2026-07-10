@@ -1,6 +1,6 @@
 import { ImportContactSchema, type ImportContact } from "./domain";
 
-function parseCsvRows(input: string): string[][] {
+function parseCsvRows(input: string): { rows: string[][]; unclosedQuote: boolean } {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -31,7 +31,7 @@ function parseCsvRows(input: string): string[][] {
 
   row.push(field.trim());
   if (row.some(Boolean)) rows.push(row);
-  return rows;
+  return { rows, unclosedQuote: quoted };
 }
 
 function normalizedHeader(value: string): string {
@@ -48,7 +48,11 @@ export function parseAttendeeCsv(input: string): CsvImportResult {
     return { contacts: [], errors: ["CSV must be smaller than 1 MB."] };
   }
 
-  const rows = parseCsvRows(input.replace(/^\uFEFF/, ""));
+  const parsedRows = parseCsvRows(input.replace(/^\uFEFF/, ""));
+  if (parsedRows.unclosedQuote) {
+    return { contacts: [], errors: ["CSV contains an unclosed quoted field."] };
+  }
+  const rows = parsedRows.rows;
   const header = rows.shift();
   if (!header) return { contacts: [], errors: ["CSV is empty."] };
 

@@ -1,31 +1,34 @@
-# Hackathon submission checklist
+# Release and submission checklist
 
-## Ready
+## Complete
 
-- [x] Mobile prototype and seeded event flow
-- [x] Public HTTPS demo API
-- [x] Structured memory extraction and no-recognition endpoint checks
-- [x] Five-slide HTML pitch
-- [x] Architecture/privacy diagram
-- [x] Two-minute demo script and fallback path
-- [x] Automated tests, Expo Doctor, and web bundle verification
-- [x] Security and privacy notes
+- [x] Polished responsive Expo app with empty, loading, success, error, and destructive-confirmation states
+- [x] Event creation, switching, attendee search, CSV import, and duplicate protection
+- [x] Event-bounded QR badge scanner with manual directory fallback
+- [x] Editable people, conversation prompts, timelines, and per-memory deletion
+- [x] Manual notes that work without AI
+- [x] Honest rules-based smart drafts and OpenAI-ready transcription/drafting
+- [x] JSON backup export/restore and full local deletion
+- [x] Public HTTPS API with validation, CORS, rate limits, size bounds, and no recognition endpoint
+- [x] Automated tests, Expo Doctor, web export, security notes, architecture diagram, pitch, and script
+- [x] Branded app icon and splash configuration
+- [x] Private GitHub repository and tagged baseline release
 
-## Requires account or hardware access
+## Account or hardware gates
 
-- [ ] Add a real OpenAI API key to Vercel and set `AI_DEMO_MODE=false`
+- [ ] Add a real OpenAI API key to Vercel and set `AI_MODE=openai` if voice is required
 - [ ] Log in to Expo/EAS and link the mobile project
-- [ ] Build/install the Android APK and iOS ad hoc preview
-- [ ] Test camera, microphone, cache deletion, and app lifecycle on physical devices
-- [ ] Record a live phone demo and optionally replace the generated caption-led teaser
-- [ ] Add a Git remote and push the tagged release
+- [ ] Build/install signed Android and iOS previews
+- [ ] Verify camera, microphone, cache cleanup, secure storage, and lifecycle on physical devices
+- [ ] Record a live-device walkthrough if the submission platform requires hardware footage
+- [ ] Keep biometric inference disabled until every model-integration gate passes
 
 ## Submission copy
 
-**One-liner:** Context is a private relationship memory aid that helps you recognize people you already know, recall what matters, and capture the next memory with OpenAI.
+**One-liner:** Context is a private relationship-memory app that helps you prepare for people you already know, recall what matters, and deliberately capture the next memory.
 
 **Category:** Mobile AI · Personal productivity · Human-centered memory
 
 **Built with:** Expo, React Native, Hono, OpenAI Audio/Responses APIs, Zustand, Zod, Vercel
 
-**Privacy promise:** Saved contacts only, active event only, deliberate camera only, no cloud face matching, and every AI memory requires human confirmation.
+**Privacy promise:** Saved contacts only, active event only, deliberate QR camera use, no cloud face matching, and no memory enters the timeline without a human action.

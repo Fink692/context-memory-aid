@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">Context privacy architecture</title>
-  <desc id="desc">Event-scoped contacts and face templates remain on device. Only the selected contact context and dictated note pass through the HTTPS API to OpenAI, returning an editable draft that the user confirms.</desc>
+  <desc id="desc">Event-scoped contacts, badges, memories, and controls remain on device. Only a selected contact context and note pass through the HTTPS API when smart tools are requested, returning an editable draft that the user confirms.</desc>
   <rect width="1600" height="900" fill="#F4F0E7"/>
   <rect x="30" y="30" width="1540" height="840" fill="none" stroke="#BDB5A7" stroke-width="2"/>
   <text x="90" y="115" fill="#111827" font-family="Georgia, serif" font-size="58" font-weight="700">Context privacy architecture</text>
@@ -11,10 +11,10 @@
   <text x="130" y="354" fill="#FFFFFF" font-family="Georgia, serif" font-size="37" font-weight="700">Private relationship store</text>
   <text x="130" y="410" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• Current event attendee IDs</text>
   <text x="130" y="453" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• Saved contacts and timeline</text>
-  <text x="130" y="496" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• Recognition-enabled flags</text>
-  <text x="130" y="539" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• Secure face templates</text>
+  <text x="130" y="496" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• Quick-match eligibility</text>
+  <text x="130" y="539" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• QR badge identifiers</text>
   <rect x="130" y="574" width="320" height="42" rx="21" fill="#4438CA"/>
-  <text x="290" y="602" fill="#FFFFFF" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700">CAPTURES DELETED AFTER ATTEMPT</text>
+  <text x="290" y="602" fill="#FFFFFF" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700">CAMERA FRAMES ARE NOT STORED</text>
 
   <path d="M510 440 H665" stroke="#4438CA" stroke-width="6" fill="none"/>
   <path d="M650 425 L675 440 L650 455" fill="none" stroke="#4438CA" stroke-width="6"/>
@@ -33,10 +33,10 @@
   <text x="1080" y="405" fill="#4438CA" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700">STRUCTURED</text>
 
   <rect x="1170" y="240" width="340" height="400" rx="28" fill="#4438CA"/>
-  <text x="1210" y="298" fill="#F2CA65" font-family="Arial, sans-serif" font-size="19" font-weight="700" letter-spacing="2">OPENAI</text>
+  <text x="1210" y="298" fill="#F2CA65" font-family="Arial, sans-serif" font-size="19" font-weight="700" letter-spacing="2">RULES OR OPENAI</text>
   <text x="1210" y="354" fill="#FFFFFF" font-family="Georgia, serif" font-size="37" font-weight="700">Memory intelligence</text>
-  <text x="1210" y="410" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Voice transcription</text>
-  <text x="1210" y="453" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Strict JSON extraction</text>
+  <text x="1210" y="410" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Typed draft extraction</text>
+  <text x="1210" y="453" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Voice in OpenAI mode</text>
   <text x="1210" y="496" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Conversation prompts</text>
   <rect x="1210" y="548" width="260" height="64" rx="12" fill="#B8EAD5"/>
   <text x="1340" y="575" fill="#111827" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700">RETURNS EDITABLE DRAFT</text>
