@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { BrandMark } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
 import { hydrateAppStore, useAppStore } from "@/store/app-store";
 
@@ -17,7 +18,7 @@ export default function RootLayout() {
   if (!hydrated) {
     return (
       <View style={styles.loading}>
-        <View style={styles.mark}><Text style={styles.markText}>C</Text></View>
+        <BrandMark size={64} />
         <Text style={styles.loadingName}>Context</Text>
         <ActivityIndicator color={colors.primary} />
       </View>
@@ -28,7 +29,7 @@ export default function RootLayout() {
     return (
       <View style={styles.recovery}>
         <View style={styles.recoveryCard}>
-          <View style={styles.mark}><Text style={styles.markText}>C</Text></View>
+          <BrandMark size={64} />
           <Text accessibilityRole="header" style={styles.recoveryTitle}>Context needs a fresh start.</Text>
           <Text accessibilityRole="alert" style={styles.recoveryBody}>{hydrationError}</Text>
           <Pressable
@@ -78,8 +79,6 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, backgroundColor: colors.canvas },
-  mark: { width: 64, height: 64, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-  markText: { color: colors.white, fontSize: 31, fontWeight: "900" },
   loadingName: { color: colors.ink, fontSize: 21, fontWeight: "800" },
   recovery: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas, padding: spacing.lg },
   recoveryCard: { width: "100%", maxWidth: 480, alignItems: "flex-start", gap: spacing.md, borderRadius: 22, borderColor: "#DDD8CA", borderWidth: 1, backgroundColor: colors.white, padding: spacing.lg },

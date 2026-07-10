@@ -1,6 +1,7 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, shadow, spacing } from "@/constants/theme";
+
+const brandIcon = require("../assets/icon.png") as number;
 
 export function Screen({
   children,
@@ -116,6 +119,17 @@ export function Avatar({ name, size = 52 }: { name: string; size?: number }) {
   );
 }
 
+export function BrandMark({ size = 40 }: { size?: number }) {
+  return (
+    <Image
+      accessible={false}
+      resizeMode="cover"
+      source={brandIcon}
+      style={{ width: size, height: size, borderRadius: size * 0.28 }}
+    />
+  );
+}
+
 export function Pill({ children, tone = "neutral" }: PropsWithChildren<{ tone?: "neutral" | "safe" | "warning" }>) {
   return (
     <View style={[styles.pill, tone === "safe" && styles.pillSafe, tone === "warning" && styles.pillWarning]}>
@@ -165,7 +179,7 @@ export function EmptyState({
 }) {
   return (
     <Card style={styles.emptyState}>
-      <View style={styles.emptyMark}><Text style={styles.emptyMarkText}>C</Text></View>
+      <BrandMark size={38} />
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyBody}>{body}</Text>
       {action}
@@ -267,8 +281,6 @@ const styles = StyleSheet.create({
   successBanner: { borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.successSoft, borderColor: "#B7E4D2", borderWidth: 1 },
   successText: { color: colors.success, fontSize: 14, lineHeight: 20, fontWeight: "700" },
   emptyState: { alignItems: "flex-start", padding: spacing.lg },
-  emptyMark: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceAlt },
-  emptyMarkText: { color: colors.primary, fontSize: 17, fontWeight: "900" },
   emptyTitle: { color: colors.ink, fontSize: 18, lineHeight: 24, fontWeight: "800" },
   emptyBody: { color: colors.inkMuted, fontSize: 14, lineHeight: 21 },
   sectionHeader: { width: "100%", flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.md },

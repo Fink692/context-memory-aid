@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { Body, Button, Card, ErrorBanner, Screen } from "@/components/ui";
+import { Body, BrandMark, Button, Card, ErrorBanner, Screen } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
 import { useAppStore } from "@/store/app-store";
 
@@ -14,7 +14,7 @@ export default function IndexScreen() {
   if (!hydrated) {
     return (
       <View style={styles.loading}>
-        <View style={styles.mark}><Text style={styles.markText}>C</Text></View>
+        <BrandMark size={68} />
         <Text style={styles.name}>Context</Text>
         <ActivityIndicator color={colors.primary} />
       </View>
@@ -46,8 +46,6 @@ export default function IndexScreen() {
 
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, backgroundColor: colors.canvas },
-  mark: { width: 68, height: 68, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-  markText: { color: colors.white, fontSize: 34, fontWeight: "900" },
   name: { color: colors.ink, fontSize: 22, fontWeight: "800" },
   recovery: { flex: 1, justifyContent: "center" },
   recoveryTitle: { color: colors.ink, fontSize: 24, lineHeight: 30, fontWeight: "800" },

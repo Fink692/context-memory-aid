@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { Avatar, Body, Button, Card, EmptyState, Eyebrow, Pill, Screen, SectionHeader, Title } from "@/components/ui";
+import { Avatar, Body, BrandMark, Button, Card, EmptyState, Eyebrow, Pill, Screen, SectionHeader, Title } from "@/components/ui";
 import { colors, radius, spacing } from "@/constants/theme";
 import { displayDate, relativeDate } from "@/lib/date";
 import { useAppStore } from "@/store/app-store";
@@ -48,7 +48,7 @@ export default function HomeScreen() {
     <Screen contentContainerStyle={styles.screen}>
       <View style={styles.topbar}>
         <View style={styles.brandRow}>
-          <View style={styles.brandMark}><Text style={styles.brandMarkText}>C</Text></View>
+          <BrandMark size={38} />
           <View>
             <Text style={styles.brandName}>Context</Text>
             <Text style={styles.brandTagline}>Relationship memory</Text>
@@ -198,8 +198,6 @@ const styles = StyleSheet.create({
   screen: { paddingTop: spacing.md, paddingBottom: spacing.xxl },
   topbar: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   brandRow: { flexShrink: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  brandMark: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-  brandMarkText: { color: colors.white, fontSize: 19, fontWeight: "900" },
   brandName: { color: colors.ink, fontSize: 18, fontWeight: "800" },
   brandTagline: { color: colors.inkMuted, fontSize: 11, marginTop: 1 },
   topAction: { minHeight: 44, justifyContent: "center", borderRadius: radius.pill, borderColor: colors.border, borderWidth: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.md },
