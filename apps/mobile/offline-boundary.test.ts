@@ -11,19 +11,22 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe("offline runtime boundary", () => {
-  it("contains no remote URL or general-purpose network request in mobile source", () => {
-    const source = ["app", "lib", "store"]
+  it("permits only the loopback watcher and an explicit user-opened search", () => {
+    const files = ["app", "lib", "store"]
       .flatMap((directory) => sourceFiles(resolve(process.cwd(), directory)))
-      .map((path) => readFileSync(path, "utf8"))
-      .join("\n");
+      .map((path) => ({ path: path.replaceAll("\\", "/"), source: readFileSync(path, "utf8") }));
+    const source = files.map((file) => file.source).join("\n");
 
-    expect(source).not.toMatch(/https?:\/\//i);
     expect(source).not.toContain("EXPO_PUBLIC_API_URL");
+    const urls = [...source.matchAll(/https?:\/\/[^\s"'`]+/gi)].map((match) => match[0]);
+    expect(new Set(urls)).toEqual(new Set([
+      "http://127.0.0.1:8789",
+      "https://example.com/feed.xml",
+      "https://www.bing.com/search?q=${encodeURIComponent(searchQuery)}",
+    ]));
 
-    // Browser document pickers expose selected local files as blob URLs. That
-    // platform read is the only permitted fetch call in the mobile source.
-    const withoutLocalDocumentReads = source.replaceAll("fetch(asset.uri)", "LOCAL_DOCUMENT_READ");
-    expect(withoutLocalDocumentReads).not.toMatch(/\bfetch\s*\(/);
+    const networkFiles = files.filter((file) => /\bfetch\s*\(/.test(file.source)).map((file) => file.path);
+    expect(networkFiles.every((path) => path.endsWith("/app/import.tsx") || path.endsWith("/app/settings.tsx") || path.endsWith("/lib/update-watcher.ts"))).toBe(true);
   });
 
   it("ships without the former API client", () => {

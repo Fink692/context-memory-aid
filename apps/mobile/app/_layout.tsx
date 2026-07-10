@@ -69,6 +69,7 @@ export default function RootLayout() {
         <Stack.Screen name="contact/[id]" options={{ title: "Relationship context" }} />
         <Stack.Screen name="memory/[contactId]" options={{ title: "Add memory", presentation: "modal" }} />
         <Stack.Screen name="import" options={{ title: "Import attendees" }} />
+        <Stack.Screen name="updates" options={{ title: "Public Update Watch" }} />
         <Stack.Screen name="settings" options={{ title: "Privacy & data" }} />
       </Stack>
     </>

@@ -1,6 +1,6 @@
 {
   "name": "context-memory-aid",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -8,8 +8,11 @@
   ],
   "scripts": {
     "dev:mobile": "npm --workspace @context/mobile run start",
+    "dev:watcher": "node tools/update-watcher.mjs serve",
+    "check:updates": "node tools/update-watcher.mjs check",
+    "install:update-task": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-monthly-update-task.ps1",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && node --test tools/update-watcher.test.mjs",
     "verify": "npm run typecheck && npm run test"
   },
   "engines": {

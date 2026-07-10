@@ -7,6 +7,7 @@ import { Avatar, Body, Button, Card, DetailRow, Divider, EmptyState, ErrorBanner
 import { colors, spacing } from "@/constants/theme";
 import { displayDate, relativeDate } from "@/lib/date";
 import { deleteFaceTemplate } from "@/lib/face-templates";
+import { removeWatchContact } from "@/lib/update-watcher";
 import { useAppStore } from "@/store/app-store";
 
 function singleParam(value: string | string[] | undefined): string | undefined {
@@ -21,6 +22,7 @@ export default function ContactScreen() {
   const contact = useAppStore((state) => state.contacts.find((item) => item.id === contactId));
   const event = useAppStore((state) => state.events.find((item) => item.id === state.currentEventId));
   const localToolsEnabled = useAppStore((state) => state.localToolsEnabled);
+  const updateWatchUsed = useAppStore((state) => state.updateWatchUsed);
   const setConversationTopics = useAppStore((state) => state.setConversationTopics);
   const setRecognitionEnabled = useAppStore((state) => state.setRecognitionEnabled);
   const deleteMemory = useAppStore((state) => state.deleteMemory);
@@ -60,11 +62,12 @@ export default function ContactScreen() {
     setError(undefined);
     try {
       await deleteFaceTemplate(contact.id);
+      if (updateWatchUsed) await removeWatchContact(contact.id);
       deleteContact(contact.id);
       setConfirmPersonDelete(false);
       router.replace("/home");
     } catch {
-      setError("Context could not remove this person’s secure matching data. Nothing was deleted; try again.");
+      setError("The person record was kept because Context could not finish removing every local copy. If you used Update Watch, make sure npm run dev:watcher is running, then try again.");
       setConfirmPersonDelete(false);
     } finally {
       setDeleteBusy(false);
@@ -125,6 +128,7 @@ export default function ContactScreen() {
 
       <ErrorBanner message={error} />
       <Button onPress={() => router.push({ pathname: "/memory/[contactId]", params: { contactId: contact.id } })}>Add a memory</Button>
+      <Button onPress={() => router.push({ pathname: "/updates", params: { contactId: contact.id } })} variant="secondary">Watch public updates</Button>
 
       <SectionHeader subtitle="Only notes you deliberately confirmed" title={`Timeline · ${sortedTimeline.length}`} />
       {sortedTimeline.length ? sortedTimeline.map((memory) => (

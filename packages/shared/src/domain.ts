@@ -9,7 +9,7 @@ export const MemorySchema = z.object({
   summary: boundedText(500),
   tags: z.array(boundedText(40)).max(8).default([]),
   nextSteps: z.array(boundedText(160)).max(5).default([]),
-  source: z.enum(["voice", "text", "import", "seed"]),
+  source: z.enum(["voice", "text", "import", "seed", "public-update"]),
   occurredAt: z.iso.datetime(),
   createdAt: z.iso.datetime(),
 });

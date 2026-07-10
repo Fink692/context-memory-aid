@@ -12,6 +12,7 @@
 - [x] Automated tests, Expo Doctor, web export, security notes, architecture diagram, pitch, and script
 - [x] Branded app icon and splash configuration
 - [x] Private GitHub repository and tagged release history
+- [x] Free local Update Watch with user-confirmed public sources, monthly Windows task, and approval-only memory writes
 
 ## Account or hardware gates
 
@@ -29,6 +30,6 @@
 
 **Built with:** Expo, React Native, Zustand, Zod, and bundled deterministic TypeScript rules
 
-**Privacy promise:** Saved contacts only, active event only, deliberate QR camera use, no cloud processing, and no memory enters the timeline without a human action.
+**Privacy promise:** Saved contacts only, active event only, deliberate QR camera use, no cloud processing of relationship data, and no memory enters the timeline without a human action. Optional public checks use only URLs the user confirms.
 
 **Runtime cost:** $0 — no hosted backend or paid API.

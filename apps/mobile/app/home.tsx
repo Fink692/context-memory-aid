@@ -186,6 +186,7 @@ export default function HomeScreen() {
       ) : null}
 
       <View style={styles.bottomActions}>
+        <Button onPress={() => router.push("/updates")} style={styles.flexButton} variant="secondary">Public updates</Button>
         <Button disabled={!event} onPress={() => router.push("/import")} style={styles.flexButton} variant="secondary">Import people</Button>
         <Button onPress={() => router.push("/events")} style={styles.flexButton} variant="secondary">Manage events</Button>
       </View>

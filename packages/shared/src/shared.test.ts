@@ -7,6 +7,8 @@ import {
   parseAttendeeCsv,
   seededContacts,
   seededEvents,
+  WatchSourceInputSchema,
+  WatchUpdateSchema,
 } from "./index";
 
 describe("event-bounded matching", () => {
@@ -80,5 +82,36 @@ describe("local intelligence", () => {
     expect(topics).toHaveLength(4);
     expect(topics[0]).toContain("Promoted to Engineering Manager");
     expect(topics.every((topic) => topic.length <= 160)).toBe(true);
+  });
+});
+
+describe("public update review boundary", () => {
+  it("accepts only confirmed-style HTTPS source inputs", () => {
+    expect(WatchSourceInputSchema.safeParse({
+      contactId: "maya-chen",
+      contactName: "Maya Chen",
+      label: "Maya's blog",
+      url: "https://example.com/maya/feed.xml",
+      kind: "rss",
+    }).success).toBe(true);
+    expect(WatchSourceInputSchema.safeParse({
+      contactId: "maya-chen",
+      contactName: "Maya Chen",
+      label: "Local page",
+      url: "http://localhost/private",
+      kind: "website",
+    }).success).toBe(false);
+  });
+
+  it("requires discovered updates to remain separate from memories", () => {
+    const update = WatchUpdateSchema.parse({
+      id: "suggestion-1",
+      contactId: "maya-chen",
+      sourceId: "source-1",
+      sourceLabel: "Public blog",
+      title: "Maya launched a new project",
+      discoveredAt: "2026-07-10T12:00:00.000Z",
+    });
+    expect(update).not.toHaveProperty("source", "public-update");
   });
 });

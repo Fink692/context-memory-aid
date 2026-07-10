@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button, Card, Divider, ErrorBanner, Pill, Screen, SectionHeader, SuccessBanner } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
 import { deleteFaceTemplate } from "@/lib/face-templates";
+import { clearUpdateWatchData } from "@/lib/update-watcher";
 import { useAppStore } from "@/store/app-store";
 
 type Confirmation = "reset" | "delete" | "restore" | null;
@@ -19,6 +20,7 @@ export default function SettingsScreen() {
   const setLocalToolsEnabled = useAppStore((state) => state.setLocalToolsEnabled);
   const contacts = useAppStore((state) => state.contacts);
   const events = useAppStore((state) => state.events);
+  const updateWatchUsed = useAppStore((state) => state.updateWatchUsed);
   const exportBundle = useAppStore((state) => state.exportBundle);
   const replaceBundle = useAppStore((state) => state.replaceBundle);
   const resetSample = useAppStore((state) => state.resetSample);
@@ -101,6 +103,7 @@ export default function SettingsScreen() {
     setError(undefined);
     try {
       await removeTemplates();
+      if (updateWatchUsed) await clearUpdateWatchData();
       if (confirmation === "reset") {
         resetSample();
         setSuccess("The sample workspace was restored.");
@@ -116,7 +119,7 @@ export default function SettingsScreen() {
       }
       setConfirmation(null);
     } catch {
-      setError("Context could not remove existing secure matching data, so no destructive changes were made.");
+      setError("Your workspace records were kept because Context could not finish removing every local copy. If you used Update Watch, start it with npm run dev:watcher and try again.");
       setConfirmation(null);
     } finally {
       setDestructiveBusy(false);
@@ -126,7 +129,7 @@ export default function SettingsScreen() {
   const confirmationCopy = confirmation === "delete"
     ? {
         title: "Delete every local record?",
-        body: "This permanently removes contacts, events, memories, preferences, and secure quick-match data from this device.",
+        body: "This permanently removes contacts, events, memories, preferences, secure quick-match data, confirmed public sources, and pending update suggestions from this PC.",
         label: "Delete everything",
       }
     : confirmation === "restore"
@@ -201,7 +204,7 @@ export default function SettingsScreen() {
 
       <Card style={styles.offlineCard}>
         <Text style={styles.sectionTitle}>Network boundary</Text>
-        <Text style={styles.sectionBody}>Core app features make no remote API requests. Typed drafts, prompt suggestions, event search, QR matching, storage, and deletion all run on this device.</Text>
+        <Text style={styles.sectionBody}>Core app features make no remote API requests. Optional Update Watch asks a loopback-only PC service to check only public HTTPS sources you confirm. Results wait for approval and no paid API is used.</Text>
       </Card>
 
       <Card>

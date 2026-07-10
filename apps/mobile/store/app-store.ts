@@ -22,12 +22,14 @@ interface AppState {
   hydrationError: string | null;
   hasSeenOnboarding: boolean;
   localToolsEnabled: boolean;
+  updateWatchUsed: boolean;
   currentEventId: string;
   contacts: Contact[];
   events: Event[];
   setHydrated: (value: boolean) => void;
   completeOnboarding: (localToolsEnabled: boolean, loadSample: boolean) => void;
   setLocalToolsEnabled: (value: boolean) => void;
+  setUpdateWatchUsed: (value: boolean) => void;
   setCurrentEventId: (eventId: string) => void;
   addEvent: (event: Event) => void;
   updateEvent: (eventId: string, updates: Partial<Omit<Event, "id" | "attendeeContactIds">>) => void;
@@ -72,6 +74,7 @@ export const useAppStore = create<AppState>()(
       hydrationError: null,
       hasSeenOnboarding: false,
       localToolsEnabled: false,
+      updateWatchUsed: false,
       currentEventId: "",
       contacts: [],
       events: [],
@@ -89,6 +92,7 @@ export const useAppStore = create<AppState>()(
             : {}),
         })),
       setLocalToolsEnabled: (localToolsEnabled) => set({ localToolsEnabled }),
+      setUpdateWatchUsed: (updateWatchUsed) => set({ updateWatchUsed }),
       setCurrentEventId: (eventId) => {
         if (get().events.some((event) => event.id === eventId)) {
           set({ currentEventId: eventId });
@@ -122,12 +126,17 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           contacts: state.contacts.map((contact) =>
             contact.id === memory.contactId
-              ? {
-                  ...contact,
-                  lastSpokeAt: memory.occurredAt,
-                  lastDiscussed: memory.summary,
-                  timeline: [memory, ...contact.timeline],
-                }
+              ? memory.source === "public-update"
+                ? {
+                    ...contact,
+                    timeline: [memory, ...contact.timeline],
+                  }
+                : {
+                    ...contact,
+                    lastSpokeAt: memory.occurredAt,
+                    lastDiscussed: memory.summary,
+                    timeline: [memory, ...contact.timeline],
+                  }
               : contact,
           ),
         })),
@@ -136,7 +145,7 @@ export const useAppStore = create<AppState>()(
           contacts: state.contacts.map((contact) => {
             if (contact.id !== contactId) return contact;
             const timeline = contact.timeline.filter((memory) => memory.id !== memoryId);
-            const latest = [...timeline].sort((left, right) =>
+            const latest = timeline.filter((memory) => memory.source !== "public-update").sort((left, right) =>
               right.occurredAt.localeCompare(left.occurredAt),
             )[0];
             const base = removeDerivedMemoryFields(contact);
@@ -249,6 +258,7 @@ export const useAppStore = create<AppState>()(
           events: seededEvents,
           currentEventId: seededEvents[0]?.id ?? "",
           hasSeenOnboarding: true,
+          updateWatchUsed: false,
         }),
       replaceBundle: (bundle) =>
         set({
@@ -256,6 +266,7 @@ export const useAppStore = create<AppState>()(
           events: bundle.events,
           currentEventId: bundle.events[0]?.id ?? "",
           hasSeenOnboarding: true,
+          updateWatchUsed: false,
         }),
       deleteAllData: () =>
         set({
@@ -263,6 +274,7 @@ export const useAppStore = create<AppState>()(
           events: [],
           currentEventId: "",
           localToolsEnabled: false,
+          updateWatchUsed: false,
           hasSeenOnboarding: false,
           hydrationError: null,
         }),
@@ -280,6 +292,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         hasSeenOnboarding: state.hasSeenOnboarding,
         localToolsEnabled: state.localToolsEnabled,
+        updateWatchUsed: state.updateWatchUsed,
         currentEventId: state.currentEventId,
         contacts: state.contacts,
         events: state.events,

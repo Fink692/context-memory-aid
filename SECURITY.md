@@ -12,12 +12,17 @@ Context processes personal relationship notes and is designed around explicit lo
 | Face embeddings | No current UI creates them; native secure-storage helper is gated | Until person/all-data deletion if a reviewed model is integrated |
 | Camera frames | Camera preview only | Not captured or uploaded by the QR flow |
 | JSON backups | User-selected file destination | Controlled by the user outside the app |
+| Confirmed public source URLs and pending update suggestions | `%LOCALAPPDATA%\ContextMemory\update-watch.json` on the PC | Until the source/suggestion is removed or the file is deleted |
 
 Android backup is disabled. Local smart tools are optional. Imported contacts have quick matching disabled by default. Manual notes work with no network connection.
 
 ## Network boundary
 
 Core app features make no remote API requests. Local file import may read a browser-provided `blob:` URL through the platform fetch interface; that does not contact a remote server.
+
+Update Watch is an optional, explicit network feature. The app talks only to a Node service bound to `127.0.0.1:8789`. That service requests only user-confirmed public HTTPS URLs and each site’s `robots.txt`; the destination site sees the normal request metadata (including the user’s IP address, requested URL, and the transparent Context watcher user-agent). Public search opens Bing only after the user taps the search button, so the entered name/company query is then sent to Bing under the browser’s own privacy terms.
+
+The watcher sends no memories, event data, camera data, cookies, credentials, or authentication headers. Results stay in a local suggestion queue and do not enter the relationship timeline without approval.
 
 Development and distribution tools may access npm, Expo, or an app store to install dependencies or distribute a build. That tooling is separate from relationship-data processing at runtime.
 
@@ -30,6 +35,8 @@ Development and distribution tools may access npm, Expo, or an app store to inst
 - Cloud note processing or speech transcription.
 - Silent memory writes.
 - Client-side service credentials.
+- Scraping login-gated pages, bypassing CAPTCHAs/robots rules, or evading social-network access controls.
+- Automatic identity resolution; the user must confirm that each source belongs to the saved person.
 
 ## Implemented controls
 
@@ -40,6 +47,9 @@ Development and distribution tools may access npm, Expo, or an app store to inst
 - Accessible confirmation dialogs for destructive actions.
 - Validated backup restore and complete local deletion.
 - SecureStore/Keychain template storage on supported native platforms only.
+- Loopback-only watcher API with local-origin CORS checks and bounded JSON bodies.
+- HTTPS-only source validation, DNS/private-address rejection, redirect revalidation, 15-second timeouts, 2 MB response limits, and robots-policy enforcement.
+- Separate public-update provenance that never changes the “Last spoke” field.
 
 ## Future release gates
 

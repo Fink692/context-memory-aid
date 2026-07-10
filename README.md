@@ -15,6 +15,7 @@ The finished app has no hosted backend, paid API, API key, subscription, or usag
 - Camera frames are not captured, stored, or uploaded.
 - Voice transcription is intentionally omitted so no cloud speech service is required.
 - JSON backup export and restore are controlled by the user.
+- Optional Update Watch runs as a loopback-only Node process on the user’s PC. It checks only public HTTPS URLs the user confirms, uses no paid API, and keeps every result in a review queue.
 
 The only workspace packages are:
 
@@ -28,6 +29,7 @@ The only workspace packages are:
 - Search a pre-event relationship briefing ordered by who may need a refresher.
 - Scan `context://contact/<contact-id>` QR badges inside the active event boundary.
 - Review relationship context, conversation prompts, and a confirmed-memory timeline.
+- Search for a known person’s public presence, confirm the exact RSS/page URL, and review monthly public-update suggestions before saving any as memories.
 - Edit people, delete individual memories, or remove a person and matching data.
 - Save typed notes directly or turn them into editable local drafts.
 - Export and restore validated JSON backups on web and native platforms.
@@ -39,12 +41,28 @@ Requirements: Node.js 22+.
 
 ```powershell
 npm ci
+npm run dev:watcher
+```
+
+In a second terminal:
+
+```powershell
 npm --workspace @context/mobile run web
 ```
 
-Open `http://localhost:8081`. No second server or `.env` file is needed.
+Open `http://localhost:8081`. No `.env`, API key, hosted backend, or paid account is needed. The app’s core relationship features still work if the optional watcher is not running.
 
-The Expo development server serves the app from this computer. Relationship features continue to use only local app storage and bundled code.
+The watcher listens only on `127.0.0.1:8789` and stores confirmed source URLs and pending suggestions in `%LOCALAPPDATA%\ContextMemory\update-watch.json`. It never receives camera data, notes, or the rest of the relationship timeline.
+
+Install the catch-up monthly Windows task once:
+
+```powershell
+npm run install:update-task
+```
+
+It runs at 9:00 AM on the first of each month and starts after the next login if the PC was unavailable. A source is not fetched again until at least 28 days have passed unless the user taps **Check now**.
+
+Update Watch does not bypass login walls, CAPTCHAs, robots policies, or platform restrictions. Direct LinkedIn, X/Twitter, Instagram, Facebook, and TikTok page watching is deliberately unsupported; official RSS/Atom feeds, personal sites, public blogs, company newsrooms, GitHub feeds, and permitted public pages work best. Public search is always user-triggered, and the user must confirm that a URL belongs to the saved person.
 
 ## Verification
 
@@ -56,7 +74,7 @@ cd ../..
 npm --workspace @context/mobile run export:web
 ```
 
-Coverage includes local draft generation, event boundaries, QR validation, CSV edge cases, workspace lifecycle, duplicate imports, memory derivation, local deletion, and backup contracts.
+Coverage includes local draft generation, event boundaries, QR validation, CSV edge cases, workspace lifecycle, duplicate imports, memory derivation, public-update provenance, feed/page parsing, robots rules, private-address rejection, the loopback API, local deletion, and backup contracts.
 
 ## Biometric status
 

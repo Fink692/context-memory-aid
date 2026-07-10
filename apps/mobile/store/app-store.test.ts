@@ -25,6 +25,7 @@ beforeEach(() => {
     hydrationError: null,
     hasSeenOnboarding: false,
     localToolsEnabled: false,
+    updateWatchUsed: false,
     currentEventId: "",
     contacts: [],
     events: [],
@@ -144,5 +145,35 @@ describe("workspace lifecycle", () => {
 
     useAppStore.getState().addMemory(memory);
     expect(useAppStore.getState().contacts[0]?.recentUpdate).toBe("Promoted to product lead");
+  });
+
+  it("adds an approved public update without pretending a conversation occurred", () => {
+    useAppStore.setState({
+      contacts: [{
+        id: "contact-test",
+        displayName: "Taylor Reed",
+        lastSpokeAt: "2026-01-01T12:00:00.000Z",
+        lastDiscussed: "Talked about evaluation pipelines.",
+        conversationTopics: [],
+        recognitionEnabled: false,
+        timeline: [],
+      }],
+    });
+    const update: Memory = {
+      id: "public-update-1",
+      contactId: "contact-test",
+      summary: "Taylor joined Northstar.",
+      tags: ["public-update"],
+      nextSteps: [],
+      source: "public-update",
+      occurredAt: "2026-07-01T12:00:00.000Z",
+      createdAt: "2026-07-10T12:00:00.000Z",
+    };
+
+    useAppStore.getState().addMemory(update);
+    const contact = useAppStore.getState().contacts[0];
+    expect(contact?.timeline).toEqual([update]);
+    expect(contact?.lastSpokeAt).toBe("2026-01-01T12:00:00.000Z");
+    expect(contact?.lastDiscussed).toBe("Talked about evaluation pipelines.");
   });
 });
