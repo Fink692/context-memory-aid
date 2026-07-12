@@ -17,7 +17,7 @@ export interface FaceMatchResult {
 export function filterEventCandidates(contacts: Contact[], event: Event): Contact[] {
   const attendeeIds = new Set(event.attendeeContactIds);
   return contacts.filter(
-    (contact) => contact.recognitionEnabled && attendeeIds.has(contact.id),
+    (contact) => contact.recognitionEnabled && Boolean(contact.badgeId) && attendeeIds.has(contact.id),
   );
 }
 

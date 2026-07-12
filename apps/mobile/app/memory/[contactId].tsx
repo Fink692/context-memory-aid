@@ -1,14 +1,40 @@
-import { useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Linking, Platform, StyleSheet, TextInput, View } from "react-native";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { createLocalMemoryDraft, type Memory, type MemoryDraft } from "@context/shared";
-import { Body, Button, Card, EmptyState, ErrorBanner, Pill, Screen, SuccessBanner } from "@/components/ui";
-import { colors, radius, spacing } from "@/constants/theme";
+import {
+  AppSymbol,
+  AppText,
+  BarButton,
+  Button,
+  EmptyState,
+  ErrorBanner,
+  FormField,
+  IconButton,
+  ListRow,
+  ListSection,
+  Screen,
+  symbols,
+} from "@/components/ui";
+import { colors, radius, spacing, typography } from "@/constants/theme";
+import { activeEventForContact } from "@/lib/contact-event-context";
 import { createModelMemoryDraft } from "@/lib/local-model";
+import { useOnDeviceDictation, type OnDeviceDictationController } from "@/lib/use-on-device-dictation";
 import { useAppStore } from "@/store/app-store";
 
 function singleParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.flatMap((value) => {
+    const clean = value.trim();
+    const key = clean.toLocaleLowerCase();
+    if (!clean || seen.has(key)) return [];
+    seen.add(key);
+    return [clean];
+  });
 }
 
 export default function AddMemoryScreen() {
@@ -16,30 +42,67 @@ export default function AddMemoryScreen() {
   const contactId = singleParam(params.contactId);
   const router = useRouter();
   const contact = useAppStore((state) => state.contacts.find((item) => item.id === contactId));
-  const event = useAppStore((state) => state.events.find((item) => item.id === state.currentEventId));
+  const event = useAppStore((state) => activeEventForContact(state.events, state.currentEventId, contactId));
   const localToolsEnabled = useAppStore((state) => state.localToolsEnabled);
   const addMemory = useAppStore((state) => state.addMemory);
   const [note, setNote] = useState("");
   const [draft, setDraft] = useState<MemoryDraft>();
   const [summary, setSummary] = useState("");
   const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
   const [draftBusy, setDraftBusy] = useState(false);
-  const [draftEngine, setDraftEngine] = useState<"model" | "rules">();
+  const [draftEngine, setDraftEngine] = useState<"model" | "device" | "rules">();
+  const draftRequest = useRef(0);
+  const dictation = useOnDeviceDictation();
+
+  useEffect(() => {
+    draftRequest.current += 1;
+    setDraftBusy(false);
+    setDraft(undefined);
+    setSummary("");
+    setDraftEngine(undefined);
+    setError(undefined);
+  }, [contact, event, localToolsEnabled]);
+
+  useEffect(() => () => { draftRequest.current += 1; }, []);
+
+  const close = async () => {
+    if (dictation.busy) await dictation.cancel();
+    if (router.canGoBack()) router.back();
+    else router.replace("/people");
+  };
 
   if (!contact) {
     return (
-      <Screen>
-        <EmptyState
-          action={<Button onPress={() => router.replace("/home")}>Return home</Button>}
-          body="It may have been deleted from this device."
-          title="This person is no longer available"
+      <>
+        <Stack.Screen
+          options={{
+            title: "New Memory",
+            headerLeft: () => <BarButton onPress={() => { void close(); }}>Close</BarButton>,
+          }}
         />
-      </Screen>
+        <Screen>
+          <EmptyState
+            action={<Button onPress={() => router.replace("/people")}>Open People</Button>}
+            body="This person may have been removed from this device."
+            symbol={symbols.person}
+            title="Person unavailable"
+          />
+        </Screen>
+      </>
     );
   }
 
-  const saveMemory = (memorySummary: string, tags: string[] = [], nextSteps: string[] = []) => {
+  const dictationContributed = dictation.state.targetId === "memory-note" && Boolean(dictation.state.finalizedText.trim());
+  const extractedFacts = draft ? uniqueStrings(draft.extractedFacts) : [];
+  const suggestedFollowUps = draft ? uniqueStrings(draft.suggestedFollowUps) : [];
+  const cleanNote = note.trim();
+
+  const saveMemory = (
+    memorySummary: string,
+    tags: string[] = [],
+    nextSteps: string[] = [],
+    source: Memory["source"] = "text",
+  ) => {
     const now = new Date().toISOString();
     const memory: Memory = {
       id: `memory-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
@@ -47,55 +110,59 @@ export default function AddMemoryScreen() {
       summary: memorySummary,
       tags,
       nextSteps,
-      source: "text",
+      source,
       occurredAt: now,
       createdAt: now,
     };
     addMemory(memory);
-    router.replace({ pathname: "/contact/[id]", params: { id: contact.id } });
+    if (router.canGoBack()) router.back();
+    else router.replace({ pathname: "/contact/[id]", params: { id: contact.id } });
   };
 
   const createDraft = async () => {
+    if (dictation.busy) {
+      setError("Stop or cancel dictation before summarizing.");
+      return;
+    }
     if (!localToolsEnabled) {
-      setError("Local AI is off. You can still save the note exactly as written.");
+      setError("On-device assistance is off. You can still save a note as written.");
       return;
     }
-    const clean = note.trim();
-    if (!clean) {
-      setError("Add a short note first.");
+    if (!cleanNote) {
+      setError("Add a note before summarizing.");
       return;
     }
+    const request = ++draftRequest.current;
     setDraftBusy(true);
     setError(undefined);
-    setNotice(undefined);
     try {
-      const result = await createModelMemoryDraft(clean, contact, event);
+      const result = await createModelMemoryDraft(cleanNote, contact, event);
+      if (request !== draftRequest.current || note.trim() !== cleanNote) return;
       setDraft(result.draft);
       setSummary(result.draft.summary);
-      setDraftEngine("model");
-      setNotice(`Drafted locally with ${result.model}. Nothing was sent to a cloud model.`);
-    } catch (caught) {
-      const nextDraft = createLocalMemoryDraft(clean);
+      setDraftEngine(Platform.OS === "android" ? "device" : "model");
+    } catch {
+      if (request !== draftRequest.current || note.trim() !== cleanNote) return;
+      const nextDraft = createLocalMemoryDraft(cleanNote);
       setDraft(nextDraft);
       setSummary(nextDraft.summary);
       setDraftEngine("rules");
-      setError(`${caught instanceof Error ? caught.message : "The local model is unavailable."} A non-AI local fallback created this draft instead.`);
+      setError("The local model was unavailable, so a private on-device fallback prepared this summary.");
     } finally {
-      setDraftBusy(false);
+      if (request === draftRequest.current) setDraftBusy(false);
     }
   };
 
   const saveAsWritten = () => {
-    const clean = note.trim();
-    if (!clean) {
-      setError("Add a short note first.");
+    if (!cleanNote) {
+      setError("Add a note before saving.");
       return;
     }
-    if (clean.length > 500) {
-      setError("Notes saved as written must be 500 characters or fewer. Shorten it or use a local draft.");
+    if (cleanNote.length > 500) {
+      setError("Shorten this note to 500 characters or summarize it before saving.");
       return;
     }
-    saveMemory(clean, ["note"]);
+    saveMemory(cleanNote, ["note"], [], dictationContributed ? "voice" : "text");
   };
 
   const confirmDraft = () => {
@@ -103,119 +170,208 @@ export default function AddMemoryScreen() {
       setError("The timeline summary cannot be empty.");
       return;
     }
-    saveMemory(summary.trim(), draft.suggestedTags, draft.suggestedFollowUps);
+    saveMemory(summary.trim(), uniqueStrings(draft.suggestedTags), suggestedFollowUps, dictationContributed ? "voice" : "text");
   };
 
+  const saveCurrent = () => {
+    if (draft) confirmDraft();
+    else saveAsWritten();
+  };
+
+  const changeNote = (value: string) => {
+    draftRequest.current += 1;
+    setDraftBusy(false);
+    setNote(value);
+    setError(undefined);
+    if (draft) {
+      setDraft(undefined);
+      setSummary("");
+      setDraftEngine(undefined);
+    }
+  };
+
+  const discardDraft = () => {
+    setDraft(undefined);
+    setSummary("");
+    setDraftEngine(undefined);
+    setError(undefined);
+  };
+
+  const canSave = draft
+    ? Boolean(summary.trim()) && !dictation.busy && !draftBusy
+    : Boolean(cleanNote) && cleanNote.length <= 500 && !dictation.busy && !draftBusy;
+  const canSummarize = !draft && localToolsEnabled && cleanNote.length >= 40 && !dictation.busy;
+
   return (
-    <Screen contentContainerStyle={styles.screen}>
-      <View style={styles.header}>
-        <Pill tone="safe">Local model on this PC · no cloud AI</Pill>
-        <Text style={styles.title}>What changed with {contact.displayName.split(" ")[0]}?</Text>
-        <Body muted>Type the useful part. Save it directly or ask the private local model to shape an editable draft.</Body>
-      </View>
-
-      <ErrorBanner message={error} />
-      <SuccessBanner message={notice} />
-
-      <Card style={styles.localCard}>
-        <View style={styles.localRow}>
-          <View style={[styles.localDot, localToolsEnabled && styles.localDotEnabled]} />
-          <View style={styles.flex}>
-            <Text style={styles.localTitle}>{localToolsEnabled ? "Local AI enabled" : "Local AI is off"}</Text>
-            <Text style={styles.localBody}>{localToolsEnabled
-              ? "Drafting uses Ollama on this PC. Your note and relationship profile never go to a cloud model."
-              : "Manual notes still work without any service, account, or internet connection."}</Text>
-          </View>
-          {!localToolsEnabled ? <Button onPress={() => router.push("/settings")} style={styles.settingsButton} variant="quiet">Settings</Button> : null}
-        </View>
-      </Card>
-
-      <Card style={styles.freeCard}>
-        <Text style={styles.freeTitle}>Zero-cost by design</Text>
-        <Text style={styles.freeBody}>Context uses a downloaded local model and typed notes, so there is no paid API, usage meter, cloud inference, or audio upload.</Text>
-      </Card>
-
-      <TextInput
-        accessibilityLabel="Memory note"
-        maxLength={4_000}
-        multiline
-        onChangeText={(value) => {
-          setNote(value);
-          if (draft) {
-            setDraft(undefined);
-            setSummary("");
-            setDraftEngine(undefined);
-            setNotice(undefined);
-          }
+    <>
+      <Stack.Screen
+        options={{
+          title: "New Memory",
+          headerLeft: () => <BarButton onPress={() => { void close(); }}>Cancel</BarButton>,
+          headerRight: () => <BarButton disabled={!canSave} onPress={saveCurrent}>Save</BarButton>,
         }}
-        placeholder="Alex accepted a new role in New York and is looking for AI engineers."
-        placeholderTextColor={colors.inkMuted}
-        style={styles.textarea}
-        value={note}
       />
-      <Text style={styles.characterCount}>{note.length.toLocaleString()} / 4,000</Text>
-      <View style={styles.noteActions}>
-        <Button disabled={!localToolsEnabled} loading={draftBusy} onPress={() => { void createDraft(); }} style={styles.flexButton} variant="secondary">Draft with local model</Button>
-        <Button onPress={saveAsWritten} style={styles.flexButton}>Save as written</Button>
-      </View>
+      <Screen contentContainerStyle={styles.screen}>
+        <View style={styles.intro}>
+          <AppText accessibilityRole="header" emphasis="semibold" role="title2">Memory for {contact.displayName}</AppText>
+          <AppText role="callout" tone="secondary">Capture the detail you want to remember next time.</AppText>
+        </View>
 
-      {draft ? (
-        <Card style={styles.draftCard}>
-          <View style={styles.draftTopline}>
-            <View style={styles.flex}>
-              <Text style={styles.sectionTitle}>Review before saving</Text>
-              <Text style={styles.sectionHint}>{draftEngine === "model" ? "A local model suggested this." : "A non-AI fallback suggested this."} Edit anything that does not sound like you.</Text>
+        <ErrorBanner message={error} />
+
+        <View style={styles.editor}>
+          <TextInput
+            accessibilityLabel={`Memory note about ${contact.displayName}`}
+            autoFocus
+            editable={!dictation.busy}
+            maxLength={4_000}
+            multiline
+            onChangeText={changeNote}
+            placeholder="They accepted a new role in New York and are looking for AI engineers."
+            placeholderTextColor={colors.inkTertiary}
+            style={styles.textarea}
+            value={note}
+          />
+          <View style={styles.editorFooter}>
+            <View style={styles.trustLine}>
+              <AppSymbol name={symbols.shield} size={14} tone="secondary" />
+              <AppText role="footnote" tone="secondary">Processed on this device</AppText>
             </View>
-            <Pill>{draftEngine === "model" ? "Local model" : "Rule fallback"}</Pill>
+            {dictation.available ? (
+              <IconButton
+                accessibilityLabel={dictation.isTargetActive("memory-note") ? "Stop dictating this memory" : "Dictate this memory"}
+                disabled={dictation.busy && !dictation.isTargetActive("memory-note")}
+                onPress={() => { void toggleMemoryDictation(dictation, note, changeNote, contact.displayName, contact.company, contact.role, event?.name); }}
+                symbol={symbols.microphone}
+                tone={dictation.isTargetActive("memory-note") ? "destructive" : "tint"}
+              />
+            ) : null}
           </View>
-          <Text style={styles.label}>Timeline summary</Text>
-          <TextInput accessibilityLabel="Timeline summary" maxLength={500} multiline onChangeText={setSummary} style={styles.summaryInput} value={summary} />
-          {draft.extractedFacts.length ? (
-            <View style={styles.factList}>
-              <Text style={styles.label}>Detected details</Text>
-              {draft.extractedFacts.map((fact) => <Text key={fact} style={styles.fact}>• {fact}</Text>)}
+          <MemoryDictationStatus controller={dictation} />
+        </View>
+
+        {cleanNote.length > 500 && !draft ? (
+          <AppText role="footnote" tone="warning">Summarize or shorten this note to 500 characters before saving.</AppText>
+        ) : null}
+        {canSummarize ? (
+          <Button
+            loading={draftBusy}
+            onPress={() => { void createDraft(); }}
+            symbol={symbols.sparkles}
+            variant="secondary"
+          >
+            Summarize
+          </Button>
+        ) : null}
+
+        {draft ? (
+          <>
+            <ListSection
+              footer={`${draftEngine === "rules" ? "Private fallback" : "Local model"} · Edit before saving`}
+              groupStyle={styles.reviewGroup}
+              title="Review Summary"
+            >
+              <FormField
+                accessibilityLabel="Timeline summary"
+                editable={!dictation.busy}
+                label="Summary"
+                maxLength={500}
+                multiline
+                onChangeText={setSummary}
+                value={summary}
+              />
+            </ListSection>
+
+            {extractedFacts.length ? (
+              <ListSection title="Detected Details">
+                {extractedFacts.map((fact, index) => (
+                  <ListRow key={fact.toLocaleLowerCase()} last={index === extractedFacts.length - 1} symbol={symbols.checkCircle} title={fact} />
+                ))}
+              </ListSection>
+            ) : null}
+
+            {suggestedFollowUps.length ? (
+              <ListSection title="Suggested Follow-up">
+                {suggestedFollowUps.map((followUp, index) => (
+                  <ListRow key={followUp.toLocaleLowerCase()} last={index === suggestedFollowUps.length - 1} symbol={symbols.sparkles} title={followUp} />
+                ))}
+              </ListSection>
+            ) : null}
+
+            <View style={styles.discardRow}>
+              <BarButton onPress={discardDraft}>Discard Summary</BarButton>
             </View>
-          ) : null}
-          {draft.suggestedFollowUps.length ? (
-            <View style={styles.factList}>
-              <Text style={styles.label}>Suggested follow-up</Text>
-              {draft.suggestedFollowUps.map((item) => <Text key={item} style={styles.followUp}>• {item}</Text>)}
-            </View>
-          ) : null}
-          <Button onPress={confirmDraft}>Confirm and add to timeline</Button>
-          <Button onPress={() => { setDraft(undefined); setSummary(""); setDraftEngine(undefined); setNotice(undefined); }} variant="quiet">Discard draft</Button>
-        </Card>
-      ) : null}
-    </Screen>
+          </>
+        ) : null}
+      </Screen>
+    </>
+  );
+}
+
+async function toggleMemoryDictation(
+  controller: OnDeviceDictationController,
+  note: string,
+  onChange: (value: string) => void,
+  displayName: string,
+  company?: string,
+  role?: string,
+  eventName?: string,
+) {
+  if (controller.isTargetActive("memory-note")) {
+    if (controller.state.phase === "recording") await controller.stop();
+    else await controller.cancel();
+    return;
+  }
+  await controller.start({
+    targetId: "memory-note",
+    label: `a note about ${displayName}`,
+    value: note,
+    onChange,
+    maxDurationSeconds: 60,
+    maxLength: 4_000,
+    contextualStrings: [displayName, company ?? "", role ?? "", eventName ?? ""].filter(Boolean),
+  });
+}
+
+function MemoryDictationStatus({ controller }: { controller: OnDeviceDictationController }) {
+  if (controller.state.targetId !== "memory-note") return null;
+  const active = controller.isTargetActive("memory-note");
+  const isError = controller.state.phase === "error";
+  let status: string | undefined;
+  switch (controller.state.phase) {
+    case "preparing": status = "Preparing dictation…"; break;
+    case "downloading-assets": status = controller.state.assetProgress === undefined
+      ? "Preparing on-device speech…"
+      : `Preparing on-device speech · ${Math.round(controller.state.assetProgress * 100)}%`; break;
+    case "recording": status = `Listening · ${Math.floor(controller.state.elapsedMs / 1_000)}s`; break;
+    case "finalizing": status = "Finishing transcription…"; break;
+    case "error": status = controller.state.error; break;
+    case "idle":
+      if (controller.state.reason === "duration-limit") status = "The one-minute limit was reached. Review the ending before saving.";
+      if (controller.state.reason === "character-limit") status = "The note limit was reached. Review the ending before saving.";
+      break;
+    case "unavailable": status = "On-device dictation is unavailable."; break;
+  }
+  if (!status) return null;
+  const openSettings = Boolean(isError && /settings/i.test(controller.state.error ?? ""));
+  return (
+    <View style={styles.dictationStatusRow}>
+      <AppText accessibilityLiveRegion="polite" role="footnote" style={styles.dictationStatus} tone={isError ? "destructive" : "secondary"}>{status}</AppText>
+      {active ? <BarButton onPress={() => { void controller.cancel(); }}>Cancel</BarButton> : null}
+      {openSettings ? <BarButton onPress={() => { void Linking.openSettings(); }}>Open Settings</BarButton> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingBottom: spacing.xxl },
-  header: { gap: spacing.sm },
-  title: { color: colors.ink, fontSize: 28, lineHeight: 34, fontWeight: "800" },
-  localCard: { backgroundColor: colors.primarySoft, borderColor: "#D9D6FE" },
-  localRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  localDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.inkMuted },
-  localDotEnabled: { backgroundColor: colors.success },
-  localTitle: { color: colors.ink, fontSize: 14, fontWeight: "800" },
-  localBody: { color: colors.inkMuted, fontSize: 12, lineHeight: 17, marginTop: 2 },
-  settingsButton: { minHeight: 38, paddingHorizontal: spacing.sm },
-  freeCard: { backgroundColor: colors.ink, borderColor: colors.ink },
-  freeTitle: { color: colors.white, fontSize: 16, fontWeight: "800" },
-  freeBody: { color: "#C9CED7", fontSize: 13, lineHeight: 19 },
-  flex: { flex: 1 },
-  textarea: { minHeight: 148, textAlignVertical: "top", borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.md, color: colors.ink, fontSize: 15, lineHeight: 22 },
-  characterCount: { color: colors.inkMuted, fontSize: 11, textAlign: "right", marginTop: -spacing.sm, fontVariant: ["tabular-nums"] },
-  noteActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  flexButton: { flex: 1, minWidth: 210 },
-  draftCard: { borderColor: "#B7E4D2", backgroundColor: "#F1FBF7" },
-  draftTopline: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
-  sectionTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
-  sectionHint: { color: colors.inkMuted, fontSize: 12, lineHeight: 17, marginTop: 2 },
-  label: { color: colors.inkMuted, fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
-  summaryInput: { minHeight: 88, textAlignVertical: "top", borderRadius: radius.md, borderWidth: 1, borderColor: "#B7E4D2", backgroundColor: colors.surface, padding: spacing.md, color: colors.ink, fontSize: 15, lineHeight: 22 },
-  factList: { gap: spacing.xs },
-  fact: { color: colors.ink, fontSize: 13, lineHeight: 19 },
-  followUp: { color: colors.success, fontSize: 13, lineHeight: 19, fontWeight: "600" },
+  screen: { paddingBottom: spacing.xxxl },
+  intro: { gap: spacing.xs },
+  editor: { overflow: "hidden", borderRadius: radius.lg, borderCurve: "continuous", backgroundColor: colors.surface },
+  textarea: { minHeight: 220, padding: spacing.lg, color: colors.ink, textAlignVertical: "top", ...typography.body },
+  editorFooter: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md },
+  trustLine: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  dictationStatusRow: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: spacing.sm, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md },
+  dictationStatus: { flex: 1 },
+  reviewGroup: { padding: spacing.lg },
+  discardRow: { alignItems: "flex-end" },
 });

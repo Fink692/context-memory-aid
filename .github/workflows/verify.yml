@@ -5,6 +5,13 @@ on:
     branches: [main, master]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -17,4 +24,46 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - run: npx expo-doctor
+        working-directory: apps/mobile
+      - run: npx expo install --check
+        working-directory: apps/mobile
       - run: npm --workspace @context/mobile run export:web
+
+  ios-diagnostics:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - run: npx expo-doctor
+        working-directory: apps/mobile
+      - run: npx expo install --check
+        working-directory: apps/mobile
+      - run: npx expo config --type public --json > "$RUNNER_TEMP/expo-config.json"
+        working-directory: apps/mobile
+      - run: npm --workspace @context/mobile run export:ios -- --clear --output-dir "$RUNNER_TEMP/context-ios-export"
+      - name: Generate and validate the unsigned iOS project
+        working-directory: apps/mobile
+        env:
+          CI: "1"
+        run: |
+          xcodebuild -version
+          npx expo prebuild --platform ios --clean --no-install
+          INFO_PLIST="$(find ios -maxdepth 2 -name Info.plist -print -quit)"
+          PRIVACY_MANIFEST="$(find ios -maxdepth 2 -name PrivacyInfo.xcprivacy -print -quit)"
+          test -n "$INFO_PLIST"
+          test -n "$PRIVACY_MANIFEST"
+          plutil -lint "$INFO_PLIST"
+          plutil -lint "$PRIVACY_MANIFEST"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$INFO_PLIST")" = "Context uses the camera only while you scan an event badge. Camera frames are not stored."
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSContactsUsageDescription' "$INFO_PLIST")" = "Allow Context to show the people you choose so you can copy their name, company, and role into your private People directory. Context does not modify Contacts."
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSFaceIDUsageDescription' "$INFO_PLIST")" = "Allow Context to use Face ID to unlock your private relationship memory."
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSMicrophoneUsageDescription' "$INFO_PLIST")" = "Allow Context to use the microphone only while you dictate private relationship details. Audio is processed on this iPhone and is not saved."
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSSpeechRecognitionUsageDescription' "$INFO_PLIST")" = "Allow Context to convert speech to text on this iPhone. Context requires on-device recognition and never uploads the recording."
+          test -f "$(find ios -maxdepth 2 -name ContextSpeechToText.swift -print -quit)"

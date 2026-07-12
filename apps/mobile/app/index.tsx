@@ -1,43 +1,22 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { Redirect, useRouter } from "expo-router";
-import { Body, BrandMark, Button, Card, ErrorBanner, Screen } from "@/components/ui";
-import { colors, spacing } from "@/constants/theme";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { Redirect } from "expo-router";
+import { colors } from "@/constants/theme";
 import { useAppStore } from "@/store/app-store";
 
 export default function IndexScreen() {
   const hydrated = useAppStore((state) => state.hydrated);
-  const hydrationError = useAppStore((state) => state.hydrationError);
   const hasSeenOnboarding = useAppStore((state) => state.hasSeenOnboarding);
-  const deleteAllData = useAppStore((state) => state.deleteAllData);
-  const router = useRouter();
 
   if (!hydrated) {
     return (
       <View style={styles.loading}>
-        <BrandMark size={68} />
-        <Text style={styles.name}>Context</Text>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator
+          accessibilityLabel="Loading Context"
+          accessibilityRole="progressbar"
+          accessibilityState={{ busy: true }}
+          color={colors.primary}
+        />
       </View>
-    );
-  }
-
-  if (hydrationError) {
-    return (
-      <Screen contentContainerStyle={styles.recovery}>
-        <Card>
-          <Text style={styles.recoveryTitle}>Context needs a fresh start.</Text>
-          <ErrorBanner message={hydrationError} />
-          <Body muted>This resets only the app workspace on this device.</Body>
-          <Button
-            onPress={() => {
-              deleteAllData();
-              router.replace("/onboarding");
-            }}
-          >
-            Start a new workspace
-          </Button>
-        </Card>
-      </Screen>
     );
   }
 
@@ -45,8 +24,5 @@ export default function IndexScreen() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, backgroundColor: colors.canvas },
-  name: { color: colors.ink, fontSize: 22, fontWeight: "800" },
-  recovery: { flex: 1, justifyContent: "center" },
-  recoveryTitle: { color: colors.ink, fontSize: 24, lineHeight: 30, fontWeight: "800" },
+  loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
 });

@@ -1,90 +1,149 @@
 import { useState } from "react";
-import { StyleSheet, Switch, Text, View } from "react-native";
+import { Platform, StyleSheet, Switch, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Body, Button, Card, Eyebrow, Pill, Screen, Title } from "@/components/ui";
+import {
+  AppSymbol,
+  AppText,
+  BrandMark,
+  Button,
+  ListRow,
+  ListSection,
+  Screen,
+  symbols,
+} from "@/components/ui";
 import { colors, radius, spacing } from "@/constants/theme";
 import { useAppStore } from "@/store/app-store";
 
-const promises = [
-  { number: "01", title: "Your network only", body: "Context only considers people you saved and attendees in the event you selected." },
-  { number: "02", title: "The camera stays deliberate", body: "Context opens it only for event badge scanning. Frames are never saved or sent for identity search." },
-  { number: "03", title: "Local and reviewable", body: "A model running on your PC creates an editable draft. Nothing enters the timeline until you confirm it." },
-];
+type Step = 0 | 1 | 2;
 
 export default function OnboardingScreen() {
+  const [step, setStep] = useState<Step>(0);
   const [localToolsEnabled, setLocalToolsEnabled] = useState(true);
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
+  const setHasSeenContactImportPrompt = useAppStore((state) => state.setHasSeenContactImportPrompt);
   const router = useRouter();
 
-  const finish = (loadSample: boolean) => {
+  const finish = (loadSample: boolean, importFromContacts = false) => {
     completeOnboarding(localToolsEnabled, loadSample);
-    router.replace("/home");
+    setHasSeenContactImportPrompt(true);
+    router.replace(importFromContacts ? "/contacts-import" : "/home");
   };
 
   return (
-    <Screen contentContainerStyle={styles.screen}>
-      <View style={styles.hero}>
-        <Pill tone="safe">Private relationship memory</Pill>
-        <Eyebrow>Meet people like you remember them</Eyebrow>
-        <Title>Your memory, right when it matters.</Title>
-        <Body muted>
-          A discreet refresher for people you already know—built for conference hallways, not stranger search.
-        </Body>
+    <Screen
+      contentContainerStyle={styles.screen}
+      safeEdges={["top", "right", "bottom", "left"]}
+    >
+      <View
+        accessibilityLabel={`Step ${step + 1} of 3`}
+        accessibilityLiveRegion="polite"
+        accessibilityRole="progressbar"
+        accessibilityValue={{ min: 1, max: 3, now: step + 1, text: `Step ${step + 1} of 3` }}
+        accessible
+        style={styles.progress}
+      >
+        {[0, 1, 2].map((value) => <View key={value} style={[styles.progressDot, value === step && styles.progressDotActive]} />)}
       </View>
 
-      <View style={styles.promiseList}>
-        {promises.map((promise) => (
-          <Card key={promise.number} style={styles.promiseCard}>
-            <Text style={styles.promiseNumber}>{promise.number}</Text>
-            <View style={styles.promiseCopy}>
-              <Text style={styles.promiseTitle}>{promise.title}</Text>
-              <Text style={styles.promiseBody}>{promise.body}</Text>
-            </View>
-          </Card>
-        ))}
-      </View>
-
-      <Card style={styles.localCard}>
-        <View style={styles.switchRow}>
-          <View style={styles.switchCopy}>
-            <Text style={styles.switchTitle}>Enable local AI</Text>
-            <Text style={styles.switchBody}>
-              Uses Ollama and a downloaded model on this PC for editable drafts and prompts. No cloud-model account, subscription, API key, or usage fee is required.
-            </Text>
+      {step === 0 ? (
+        <View style={styles.welcome}>
+          <BrandMark size={84} />
+          <View style={styles.heroCopy}>
+            <AppText accessibilityRole="header" emphasis="bold" role="largeTitle">Remember the people who matter.</AppText>
+            <AppText tone="secondary">From work and school to your neighborhood, a shop, travel, or an event, Context gives you a private place to remember who you met and what matters next.</AppText>
           </View>
-          <Switch
-            accessibilityLabel="Enable local AI"
-            value={localToolsEnabled}
-            onValueChange={setLocalToolsEnabled}
-            trackColor={{ false: colors.border, true: "#A7F3D0" }}
-            thumbColor={localToolsEnabled ? colors.success : colors.surface}
-          />
+          <View style={styles.previewMark}>
+            <AppSymbol name={symbols.people} size={30} tone="tint" weight="semibold" />
+            <AppText emphasis="semibold" role="headline">Your relationships, not a stranger search</AppText>
+          </View>
         </View>
-      </Card>
+      ) : null}
 
-      <View style={styles.actions}>
-        <Button onPress={() => finish(true)}>Explore with sample people</Button>
-        <Button variant="secondary" onPress={() => finish(false)}>Start with an empty workspace</Button>
-      </View>
-      <Text style={styles.footnote}>Sample profiles are fictional and can be removed at any time. New contacts start with quick matching off.</Text>
+      {step === 1 ? (
+        <View style={styles.stepBody}>
+          <View style={styles.heroCopy}>
+            <AppText accessibilityRole="header" emphasis="bold" role="title1">Private by design.</AppText>
+            <AppText tone="secondary">The useful context stays under your control.</AppText>
+          </View>
+          <ListSection>
+            <ListRow
+              symbol={symbols.shield}
+              subtitle="Context only searches people you chose to save."
+              title="Your people only"
+            />
+            <ListRow
+              symbol={symbols.camera}
+              subtitle="The camera opens only while you scan a Context badge."
+              title="A deliberate camera"
+            />
+            <ListRow
+              last
+              symbol={symbols.sparkles}
+              subtitle="Suggestions remain editable until you choose to save them."
+              title="Reviewable assistance"
+            />
+          </ListSection>
+          <ListSection footer={Platform.OS === "ios" ? "Gemma can be downloaded later in Settings. Non-AI tools work immediately." : "You can change this later in Settings."}>
+            <ListRow
+              accessoryNode={(
+                <Switch
+                  accessibilityLabel="Private smart assist"
+                  onValueChange={setLocalToolsEnabled}
+                  trackColor={{ false: colors.fillStrong, true: colors.primary }}
+                  value={localToolsEnabled}
+                />
+              )}
+              last
+              subtitle={Platform.OS === "web" ? "Use a model running on this computer" : "Create private drafts and conversation prompts"}
+              symbol={symbols.model}
+              title="Private smart assist"
+            />
+          </ListSection>
+        </View>
+      ) : null}
+
+      {step === 2 ? (
+        <View style={styles.stepBody}>
+          <View style={styles.importSymbol}>
+            <AppSymbol name={symbols.import} size={36} tone="tint" weight="semibold" />
+          </View>
+          <View style={styles.heroCopy}>
+            <AppText accessibilityRole="header" emphasis="bold" role="title1">Bring in your people.</AppText>
+            <AppText tone="secondary">Choose exactly who to copy. Context can bring in names, companies, roles, and available phone, email, social, and profile-thumbnail details—never Contacts notes, birthdays, or postal addresses.</AppText>
+          </View>
+          <View style={styles.finalActions}>
+            {Platform.OS !== "web" ? (
+              <Button onPress={() => finish(false, true)} symbol={symbols.import}>Choose from Contacts</Button>
+            ) : (
+              <Button onPress={() => finish(true)} symbol={symbols.people}>Try with sample people</Button>
+            )}
+            {Platform.OS !== "web" ? <Button onPress={() => finish(true)} variant="secondary">Try with sample people</Button> : null}
+            <Button onPress={() => finish(false)} variant="quiet">Start with an empty workspace</Button>
+          </View>
+          <AppText role="footnote" style={styles.footnote} tone="secondary">Sample profiles are fictional and can be erased at any time.</AppText>
+        </View>
+      ) : null}
+
+      {step < 2 ? (
+        <View style={styles.nextAction}>
+          <Button onPress={() => setStep((step + 1) as Step)}>Continue</Button>
+        </View>
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingTop: spacing.xxl, paddingBottom: spacing.xxl },
-  hero: { gap: spacing.md },
-  promiseList: { gap: spacing.sm },
-  promiseCard: { flexDirection: "row", borderRadius: radius.md },
-  promiseNumber: { width: 38, color: colors.primary, fontSize: 13, fontWeight: "900" },
-  promiseCopy: { flex: 1, gap: spacing.xs },
-  promiseTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
-  promiseBody: { color: colors.inkMuted, fontSize: 14, lineHeight: 20 },
-  localCard: { backgroundColor: "#F0EFFF", borderColor: "#D9D6FE" },
-  switchRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
-  switchCopy: { flex: 1, gap: spacing.xs },
-  switchTitle: { color: colors.ink, fontSize: 16, fontWeight: "800" },
-  switchBody: { color: colors.inkMuted, fontSize: 13, lineHeight: 19 },
-  footnote: { color: colors.inkMuted, textAlign: "center", fontSize: 12, lineHeight: 18 },
-  actions: { gap: spacing.sm },
+  screen: { flexGrow: 1, paddingTop: spacing.lg, paddingBottom: spacing.xl, gap: spacing.xl },
+  progress: { minHeight: 24, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: spacing.sm },
+  progressDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: colors.fillStrong },
+  progressDotActive: { width: 22, backgroundColor: colors.primary },
+  welcome: { flex: 1, minHeight: 540, justifyContent: "center", alignItems: "flex-start", gap: spacing.xl },
+  stepBody: { flex: 1, minHeight: 520, justifyContent: "center", gap: spacing.xl },
+  heroCopy: { width: "100%", gap: spacing.md },
+  previewMark: { width: "100%", flexDirection: "row", alignItems: "center", gap: spacing.md, borderRadius: radius.lg, borderCurve: "continuous", backgroundColor: colors.primarySoft, padding: spacing.lg },
+  importSymbol: { width: 72, height: 72, alignItems: "center", justifyContent: "center", borderRadius: radius.feature, borderCurve: "continuous", backgroundColor: colors.primarySoft },
+  finalActions: { gap: spacing.sm },
+  footnote: { textAlign: "center" },
+  nextAction: { marginTop: "auto" },
 });
