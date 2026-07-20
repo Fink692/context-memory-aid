@@ -81,11 +81,26 @@ export function parseAttendeeCsv(input: string): CsvImportResult {
       }
       lastSpokeAt = parsedDate.toISOString();
     }
+    const socialPlatform = valueAt(row, "socialplatform", "platform");
+    const socialHandle = valueAt(row, "socialhandle", "handle", "username");
+    const socialUrl = valueAt(row, "socialurl", "profileurl");
+    const socialLinks = socialPlatform && (socialHandle || socialUrl)
+      ? [{ platform: socialPlatform, handle: socialHandle, url: socialUrl }]
+      : undefined;
     const candidate = {
       displayName: valueAt(row, "displayname", "name") ?? "",
       company: valueAt(row, "company"),
       role: valueAt(row, "role", "title"),
+      email: valueAt(row, "email", "emailaddress"),
+      phone: valueAt(row, "phone", "phonenumber", "mobile"),
+      socialLinks,
       metAt: valueAt(row, "metat", "met"),
+      relationshipContext: valueAt(
+        row,
+        "relationshipcontext",
+        "relationship",
+        "howweknoweachother",
+      ),
       lastSpokeAt,
       notes: valueAt(row, "notes", "note"),
     };

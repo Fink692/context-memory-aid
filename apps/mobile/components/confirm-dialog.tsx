@@ -1,6 +1,7 @@
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { Button } from "@/components/ui";
-import { colors, radius, shadow, spacing } from "@/constants/theme";
+import { Modal, Platform, StyleSheet, useWindowDimensions, View } from "react-native";
+import { AppText, BarButton, Button, Screen } from "@/components/ui";
+import { spacing } from "@/constants/theme";
+import { shouldStackSharedRow } from "@/lib/accessibility-layout";
 
 export function ConfirmDialog({
   visible,
@@ -21,61 +22,64 @@ export function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { fontScale, width } = useWindowDimensions();
+  const stackHeader = shouldStackSharedRow({ fontScale, width });
+
   return (
     <Modal
-      animationType="fade"
-      onRequestClose={onCancel}
-      transparent
+      allowSwipeDismissal={!busy}
+      animationType="slide"
+      onRequestClose={() => {
+        if (!busy) onCancel();
+      }}
+      presentationStyle={Platform.OS === "ios" ? "pageSheet" : "fullScreen"}
       visible={visible}
     >
-      <View style={styles.backdrop}>
-        <Pressable
-          accessibilityLabel="Close confirmation"
-          accessibilityRole="button"
-          onPress={busy ? undefined : onCancel}
-          style={StyleSheet.absoluteFill}
-        />
-        <View accessibilityViewIsModal style={styles.dialog}>
-          <Text accessibilityRole="header" style={styles.title}>{title}</Text>
-          <Text style={styles.body}>{body}</Text>
-          <View style={styles.actions}>
-            <Button disabled={busy} onPress={onCancel} style={styles.action} variant="secondary">Cancel</Button>
+      <Screen
+        accessibilityViewIsModal
+        contentContainerStyle={styles.sheet}
+        safeEdges={["top", "right", "bottom", "left"]}
+        {...(busy ? {} : { onAccessibilityEscape: onCancel })}
+      >
+        <View style={[styles.sheetBar, stackHeader && styles.sheetBarStacked]}>
+          <BarButton disabled={busy} onPress={onCancel}>Cancel</BarButton>
+          <AppText
+            accessibilityRole="header"
+            emphasis="semibold"
+            numberOfLines={stackHeader ? undefined : 2}
+            role="headline"
+            style={[styles.title, stackHeader && styles.titleStacked]}
+          >
+            {title}
+          </AppText>
+          {!stackHeader ? <View accessibilityElementsHidden importantForAccessibility="no" style={styles.barSpacer} /> : null}
+        </View>
+
+        <View style={styles.content}>
+          <AppText role="body" tone="secondary">{body}</AppText>
+          <View style={styles.primaryAction}>
             <Button
+              accessibilityHint={destructive ? "This action may not be reversible" : undefined}
               loading={busy}
               onPress={onConfirm}
-              style={styles.action}
               variant={destructive ? "danger" : "primary"}
             >
               {confirmLabel}
             </Button>
           </View>
         </View>
-      </View>
+      </Screen>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(17, 24, 39, 0.58)",
-    padding: spacing.lg,
-  },
-  dialog: {
-    width: "100%",
-    maxWidth: 460,
-    borderRadius: radius.lg,
-    borderColor: colors.border,
-    borderWidth: 1,
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    gap: spacing.md,
-    ...shadow,
-  },
-  title: { color: colors.ink, fontSize: 22, lineHeight: 28, fontWeight: "800" },
-  body: { color: colors.inkMuted, fontSize: 15, lineHeight: 22 },
-  actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  action: { flex: 1 },
+  sheet: { flexGrow: 1, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+  sheetBar: { minHeight: 44, flexDirection: "row", alignItems: "center" },
+  sheetBarStacked: { flexDirection: "column", alignItems: "flex-start", gap: spacing.sm },
+  title: { flex: 1, minWidth: 0, paddingHorizontal: spacing.sm, textAlign: "center" },
+  titleStacked: { width: "100%", flex: 0, paddingHorizontal: 0, textAlign: "left" },
+  barSpacer: { width: 44, height: 44 },
+  content: { flex: 1, justifyContent: "space-between", gap: spacing.xl, paddingTop: spacing.xl },
+  primaryAction: { width: "100%", marginTop: "auto" },
 });

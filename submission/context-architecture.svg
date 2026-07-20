@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">Context privacy architecture</title>
-  <desc id="desc">Event-scoped contacts, badges, memories, local Ollama model assistance, and controls remain local. An optional loopback watcher reads only user-confirmed public HTTPS sources and queues results for human review. No relationship data is uploaded to a cloud model.</desc>
+  <desc id="desc">Event-scoped contacts, badges, memories, Smart Assist, and review controls form a human-controlled relationship workflow. Update Watch reads only user-confirmed public HTTPS sources and queues results for review.</desc>
   <rect width="1600" height="900" fill="#F4F0E7"/>
   <rect x="30" y="30" width="1540" height="840" fill="none" stroke="#BDB5A7" stroke-width="2"/>
   <text x="90" y="115" fill="#111827" font-family="Georgia, serif" font-size="58" font-weight="700">Context privacy architecture</text>
-  <text x="92" y="163" fill="#596273" font-family="Arial, sans-serif" font-size="24">Identity and memory stay local. No hosted backend, API key, subscription, or usage fee.</text>
+  <text x="92" y="163" fill="#596273" font-family="Arial, sans-serif" font-size="24">Identity, memory, and suggestions remain under human control.</text>
 
   <rect x="90" y="240" width="400" height="400" rx="28" fill="#111827"/>
-  <text x="130" y="298" fill="#B8EAD5" font-family="Arial, sans-serif" font-size="19" font-weight="700" letter-spacing="2">ON DEVICE</text>
-  <text x="130" y="354" fill="#FFFFFF" font-family="Georgia, serif" font-size="37" font-weight="700">Private relationship store</text>
+  <text x="130" y="298" fill="#B8EAD5" font-family="Arial, sans-serif" font-size="19" font-weight="700" letter-spacing="2">YOUR CONTEXT</text>
+  <text x="130" y="354" fill="#FFFFFF" font-family="Georgia, serif" font-size="37" font-weight="700">Relationship memory</text>
   <text x="130" y="410" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• Current event attendee IDs</text>
   <text x="130" y="453" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• Saved contacts and timeline</text>
   <text x="130" y="496" fill="#D3D7DE" font-family="Arial, sans-serif" font-size="24">• Quick-match eligibility</text>
@@ -18,15 +18,15 @@
 
   <path d="M510 440 H665" stroke="#4438CA" stroke-width="6" fill="none"/>
   <path d="M650 425 L675 440 L650 455" fill="none" stroke="#4438CA" stroke-width="6"/>
-  <text x="585" y="405" fill="#4438CA" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700">LOCAL ONLY</text>
+  <text x="585" y="405" fill="#4438CA" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700">CONTROLLED INPUT</text>
   <text x="585" y="492" fill="#596273" text-anchor="middle" font-family="Arial, sans-serif" font-size="17">typed note in app memory</text>
 
   <rect x="690" y="300" width="310" height="280" rx="28" fill="#FFFFFF" stroke="#D8D1C3" stroke-width="3"/>
-  <text x="730" y="358" fill="#4438CA" font-family="Arial, sans-serif" font-size="19" font-weight="700" letter-spacing="2">LOCAL PC TOOLS</text>
+  <text x="730" y="358" fill="#4438CA" font-family="Arial, sans-serif" font-size="19" font-weight="700" letter-spacing="2">SMART ASSIST</text>
   <text x="730" y="414" fill="#111827" font-family="Georgia, serif" font-size="34" font-weight="700">Draft + watch</text>
   <text x="730" y="463" fill="#596273" font-family="Arial, sans-serif" font-size="22">Ollama + Qwen3 note drafts</text>
   <text x="730" y="502" fill="#596273" font-family="Arial, sans-serif" font-size="22">Confirmed public URLs only</text>
-  <text x="730" y="541" fill="#596273" font-family="Arial, sans-serif" font-size="22">$0 · no memory upload</text>
+  <text x="730" y="541" fill="#596273" font-family="Arial, sans-serif" font-size="22">Reviewable suggestions</text>
 
   <text x="845" y="225" fill="#596273" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700">OPTIONAL PUBLIC HTTPS / RSS</text>
   <path d="M845 240 V282" stroke="#E86746" stroke-width="4" fill="none"/>
@@ -41,7 +41,7 @@
   <text x="1210" y="354" fill="#FFFFFF" font-family="Georgia, serif" font-size="37" font-weight="700">Review + save</text>
   <text x="1210" y="410" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Draft + update review</text>
   <text x="1210" y="453" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Explicit confirmation</text>
-  <text x="1210" y="496" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Local timeline</text>
+  <text x="1210" y="496" fill="#E3E2FA" font-family="Arial, sans-serif" font-size="24">Confirmed timeline</text>
   <rect x="1210" y="548" width="260" height="64" rx="12" fill="#B8EAD5"/>
   <text x="1340" y="575" fill="#111827" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700">NOTHING SAVES SILENTLY</text>
   <text x="1340" y="596" fill="#111827" text-anchor="middle" font-family="Arial, sans-serif" font-size="14">user confirms every memory</text>

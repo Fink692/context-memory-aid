@@ -8,20 +8,27 @@
   ],
   "scripts": {
     "dev:mobile": "npm --workspace @context/mobile run start",
+    "build:desktop:macos": "npm --workspace @context/mobile run export:web -- --clear && ./apps/desktop-macos/build-macos.sh",
     "dev:watcher": "node tools/update-watcher.mjs serve",
     "check:updates": "node tools/update-watcher.mjs check",
     "install:update-task": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-monthly-update-task.ps1",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present && node --test tools/update-watcher.test.mjs tools/local-model.test.mjs",
-    "verify": "npm run typecheck && npm run test"
+    "verify": "npm run typecheck && npm run test",
+    "audit": "npm audit --audit-level=high"
   },
   "engines": {
     "node": ">=22"
   },
   "overrides": {
-    "react-native-safe-area-context": "5.7.0"
+    "react-native-safe-area-context": "5.7.0",
+    "uuid": "11.1.1"
   },
   "optionalDependencies": {
-    "@rolldown/binding-linux-x64-gnu": "1.1.5"
+    "@rolldown/binding-darwin-arm64": "1.1.5",
+    "@rolldown/binding-darwin-x64": "1.1.5",
+    "@rolldown/binding-linux-x64-gnu": "1.1.5",
+    "lightningcss-darwin-arm64": "1.32.0",
+    "lightningcss-linux-x64-gnu": "1.32.0"
   }
 }

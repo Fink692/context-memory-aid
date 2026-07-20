@@ -3,8 +3,8 @@
 ## Setup
 
 - Open the sample **OpenAI Memory Hack Night** event.
-- Use Jordan for the refresher and local-draft flow.
-- Keep local AI on and confirm `qwen3:4b` is ready in Privacy & data.
+- Use Jordan for the refresher and Smart Assist flow.
+- Keep Smart Assist on and confirm `qwen3:4b` is ready in Settings.
 - Start `npm run dev:watcher` and preload one permitted demo RSS source if showing Update Watch live.
 - Core memory features need no internet connection; Update Watch needs public internet but no API key, hosted backend, or paid account.
 
@@ -40,15 +40,15 @@ Tap **Add a memory**, type:
 
 > Jordan accepted a new role in New York and is hiring AI engineers for the developer tooling team.
 
-Tap **Draft with local model**, edit the summary, and confirm it.
+Tap **Summarize**, edit the summary, and confirm it.
 
-“A local Qwen model organizes the update through Ollama on this PC. There is no cloud-model call or usage fee. I review the details, edit the summary, and explicitly confirm. With local AI off, I can always save the note exactly as written.”
+“Smart Assist organizes the update into a reviewable draft. I can edit every detail before I confirm it, and I can always save the note exactly as written.”
 
 **1:38–1:50 — Prove control**
 
 Delete the new memory, show the confirmation, then cancel or confirm. Open **Privacy & data** and show export, restore, and delete-all controls.
 
-“Every memory can be removed. The whole workspace can be exported, restored, or erased from this device.”
+“Every memory can be removed. The whole workspace can be exported, restored, or erased from Context.”
 
 **1:50–2:00 — End on the category**
 
@@ -57,9 +57,9 @@ Delete the new memory, show the confirmation, then cancel or confirm. Open **Pri
 ## Truthful judge Q&A
 
 - **Does it identify faces today?** No. The finished workflow uses event search and QR badges. Biometric inference stays disabled until every reviewed integration gate passes.
-- **What leaves the device?** No relationship data. Profiles, notes, prompts, drafts, event search, and QR matching stay local.
+- **What leaves Context?** Only the public-source requests a user explicitly opens or confirms. Relationship notes are not added to those requests.
 - **Does Update Watch scrape social networks?** It checks only public HTTPS sources I confirm, honors robots and access barriers, and never uses account cookies. If LinkedIn, X, Instagram, or another site prohibits automated access, Context reports it as unsupported; RSS, blogs, newsrooms, and permitted public pages work best.
 - **What does a watched site see?** A normal public request from my PC: my IP address, the requested URL, and Context’s transparent watcher user-agent. It never receives my memories or event data.
-- **What makes the draft smart?** `qwen3:4b` runs locally through Ollama and returns strictly validated summaries, details, tags, and follow-ups. If it is stopped, clearly labeled non-AI rules keep manual drafting usable.
-- **Why no voice transcription?** Reliable transcription would require a large bundled model or a cloud speech service. Context uses typed notes so the shipped app has no paid API or audio upload.
+- **What makes the draft smart?** Smart Assist returns strictly validated summaries, details, tags, and follow-ups. If it is unavailable, a clearly labeled basic summary keeps manual drafting usable.
+- **Does voice work?** The iOS app supports deliberate dictation in person and memory forms, with editable text before anything is saved.
 - **Why event-scoped?** It reduces accidental disclosure, cognitive overload, and the discomfort of ambient scanning while delivering the memory benefit.

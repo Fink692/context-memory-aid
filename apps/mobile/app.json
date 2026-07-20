@@ -1,41 +1,100 @@
 {
   "expo": {
-    "name": "Context — Relationship Memory",
+    "name": "Context",
     "slug": "context-memory-aid",
     "version": "0.5.0",
     "icon": "./assets/icon.png",
-    "orientation": "portrait",
+    "orientation": "default",
     "scheme": "context",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "plugins": [
+      "./plugins/with-litert-lm",
+      "./plugins/with-context-pdf-import",
+      "./plugins/with-privacy-shield",
       "expo-router",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow Context to show the people you choose and copy their name, company, role, and available phone, email, and social profile into your private People directory. Context does not modify Contacts."
+        }
+      ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Context uses the camera only while you scan an event badge. Camera frames are not stored.",
+          "cameraPermission": "Allow Context to scan a contact QR code while the scanner is open. Camera video stays on this iPhone and is not saved.",
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
         }
       ],
-      "expo-secure-store",
+      "./plugins/with-on-device-speech",
+      "./plugins/with-profile-photo-picker",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow Context to use Face ID to unlock your private relationship memory."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Context to use Face ID to unlock your private relationship memory."
+        }
+      ],
+      "@react-native-community/datetimepicker",
       [
         "expo-splash-screen",
         {
           "image": "./assets/icon.png",
           "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#F6F4EE"
+          "backgroundColor": "#F2F2F7",
+          "dark": {
+            "image": "./assets/icon.png",
+            "backgroundColor": "#000000"
+          }
         }
       ]
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hackathon.contextmemory"
+      "appleTeamId": "8SSS2F2BCW",
+      "bundleIdentifier": "com.fink692.contextmemory",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow Context to turn dictation into editable text.",
+        "UIViewControllerBasedStatusBarAppearance": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": ["0A2A.1", "3B52.1", "C617.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": ["85F4.1", "E174.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
+      }
     },
     "android": {
-      "package": "com.hackathon.contextmemory",
+      "package": "com.fink692.contextmemory",
       "allowBackup": false,
-      "permissions": ["CAMERA"]
+      "blockedPermissions": ["android.permission.WRITE_CONTACTS", "android.permission.RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",

@@ -5,16 +5,94 @@ on:
     branches: [main, master]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npm run verify
-      - run: npm --workspace @context/mobile run export:web
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+      - name: Type-check and test
+        run: npm run verify
+      - name: Run Expo Doctor
+        run: npx expo-doctor
+        working-directory: apps/mobile
+      - name: Verify Expo dependencies
+        run: npx expo install --check
+        working-directory: apps/mobile
+      - name: Export production web bundle
+        run: npm --workspace @context/mobile run export:web -- --clear
+
+  ios-diagnostics:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+      - name: Type-check and test
+        run: npm run verify
+      - name: Run Expo Doctor
+        run: npx expo-doctor
+        working-directory: apps/mobile
+      - name: Verify Expo dependencies
+        run: npx expo install --check
+        working-directory: apps/mobile
+      - name: Resolve public Expo configuration
+        run: npx expo config --type public --json > "$RUNNER_TEMP/expo-config.json"
+        working-directory: apps/mobile
+      - name: Export production iOS bundle
+        run: npm --workspace @context/mobile run export:ios -- --clear --output-dir "$RUNNER_TEMP/context-ios-export"
+      - name: Export production web bundle
+        run: npm --workspace @context/mobile run export:web -- --clear
+      - name: Build and verify macOS desktop package
+        run: |
+          ./apps/desktop-macos/build-macos.sh
+          codesign --verify --deep --strict "apps/desktop-macos/build/Context Desktop.app"
+      - name: Generate and validate the unsigned iOS project
+        working-directory: apps/mobile
+        env:
+          CI: "1"
+        run: |
+          xcodebuild -version
+          npx expo prebuild --platform ios --clean --no-install
+          INFO_PLIST="$(find ios -maxdepth 2 -name Info.plist -print -quit)"
+          PRIVACY_MANIFEST="$(find ios -maxdepth 2 -name PrivacyInfo.xcprivacy -print -quit)"
+          test -n "$INFO_PLIST"
+          test -n "$PRIVACY_MANIFEST"
+          plutil -lint "$INFO_PLIST"
+          plutil -lint "$PRIVACY_MANIFEST"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$INFO_PLIST")" = "Allow Context to scan a contact QR code while the scanner is open. Camera video stays on this iPhone and is not saved."
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSContactsUsageDescription' "$INFO_PLIST")" = "Allow Context to show the people you choose and copy their name, company, role, and available phone, email, and social profile into your private People directory. Context does not modify Contacts."
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSFaceIDUsageDescription' "$INFO_PLIST")" = "Allow Context to use Face ID to unlock your private relationship memory."
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSMicrophoneUsageDescription' "$INFO_PLIST")" = "Allow Context to use the microphone while you dictate relationship details. Audio is not saved."
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSSpeechRecognitionUsageDescription' "$INFO_PLIST")" = "Allow Context to turn dictation into editable text."
+          test -f "$(find ios -maxdepth 2 -name ContextSpeechToText.swift -print -quit)"
+          test -f "$(find ios -maxdepth 2 -name ContextLocalLLM.swift -print -quit)"
+          test -f "$(find ios -maxdepth 2 -name ContextPDFTextExtractor.swift -print -quit)"
+          test -f "$(find ios -maxdepth 2 -name ContextProfilePhotoPicker.swift -print -quit)"
+          test -f "$(find ios -maxdepth 2 -name ContextPrivacyShield.swift -print -quit)"
