@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/Expo-57-000020?logo=expo" alt="Expo 57">
   <img src="https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=111111" alt="React Native 0.86">
   <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="Strict TypeScript">
+  <img src="https://img.shields.io/badge/Built_with-GPT--5.6-412991?logo=openai&logoColor=white" alt="Built with GPT-5.6">
   <img src="https://img.shields.io/badge/core_runtime-$0-166534" alt="Zero cost core runtime">
 </p>
 
@@ -35,6 +36,21 @@ The idea came from watching my mom meet people. After a conversation, she often 
 It is a thoughtful habit, but the notes quickly become cluttered. Names are formatted inconsistently, details are spread across different entries, and useful context gets buried among grocery lists and reminders. When she meets someone again, the information may be on her phone, but it is hard to find at the moment she needs it.
 
 Context gives those memories a dedicated home. It keeps the speed of writing a note while organizing every detail around the person it belongs to.
+
+## How I used GPT-5.6
+
+I built Context on my own, with GPT-5.6 through Codex as an AI engineering collaborator. I set the product direction, chose the privacy boundaries, made the final design decisions, and reviewed every change. GPT-5.6 helped me move from the original idea to a tested, cross-platform product by assisting with:
+
+- Exploring product flows and turning the Notes app problem into a focused relationship-memory experience
+- Designing the TypeScript monorepo, shared data contracts, native iOS boundaries, and offline-first architecture
+- Drafting and refactoring React Native, Swift, Objective-C, AppKit, test, and automation code
+- Reasoning through contact permissions, local storage, review-before-save flows, backups, and privacy safeguards
+- Generating edge-case tests and investigating timezone, native build, and Linux CI failures
+- Polishing the README, project story, release documentation, and GitHub presentation
+
+I treated GPT-5.6 output as a starting point rather than an automatic decision. I inspected the code, tested the complete user flow, built the native targets, and used GitHub Actions to verify the final result on Linux and macOS.
+
+GPT-5.6 was part of the development process, not a runtime dependency. The released mobile app does not send relationship data to GPT-5.6 or require an OpenAI account or API key.
 
 ## Product tour
 
@@ -136,6 +152,7 @@ The optional PC web companion can use `qwen3:4b` through a loopback-only Ollama 
 | Sharing and import | vCard, QR, Contacts, CSV, PDF, JSON backup |
 | Desktop | AppKit and WebKit wrapper for the production web bundle |
 | Quality | Vitest, Node test runner, TypeScript, Expo Doctor, GitHub Actions |
+| Development workflow | GPT-5.6 through Codex for assisted design, implementation, testing, debugging, and documentation |
 
 ## Repository layout
 
