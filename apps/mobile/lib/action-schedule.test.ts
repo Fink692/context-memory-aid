@@ -7,14 +7,14 @@ import {
   sortOpenActions,
 } from "./action-schedule";
 
-const now = new Date("2026-07-17T12:00:00-05:00");
+const now = new Date(2026, 6, 17, 12);
 
 describe("action scheduling", () => {
   it("groups due dates using the device's local day", () => {
     expect(actionDueBucket(undefined, now)).toBe("undated");
-    expect(actionDueBucket("2026-07-16T23:59:59-05:00", now)).toBe("overdue");
-    expect(actionDueBucket("2026-07-17T18:00:00-05:00", now)).toBe("today");
-    expect(actionDueBucket("2026-07-18T08:00:00-05:00", now)).toBe("upcoming");
+    expect(actionDueBucket(new Date(2026, 6, 16, 23, 59, 59).toISOString(), now)).toBe("overdue");
+    expect(actionDueBucket(new Date(2026, 6, 17, 18).toISOString(), now)).toBe("today");
+    expect(actionDueBucket(new Date(2026, 6, 18, 8).toISOString(), now)).toBe("upcoming");
   });
 
   it("creates reversible quick due choices", () => {
