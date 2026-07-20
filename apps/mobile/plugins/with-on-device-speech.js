@@ -2,8 +2,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { withInfoPlist, withXcodeProject, IOSConfig } = require("expo/config-plugins");
 
-const MICROPHONE_PERMISSION = "Allow Context to use the microphone only while you dictate private relationship details. Audio is processed on this iPhone and is not saved.";
-const SPEECH_PERMISSION = "Allow Context to convert speech to text on this iPhone. Context requires on-device recognition and never uploads the recording.";
+const MICROPHONE_PERMISSION = "Allow Context to use the microphone while you dictate relationship details. Audio is not saved.";
+const SPEECH_PERMISSION = "Allow Context to turn dictation into editable text.";
 const NATIVE_FILES = ["ContextSpeechToText.swift", "ContextSpeechToTextBridge.m"];
 
 function withSpeechPurposeStrings(config) {

@@ -1,7 +1,7 @@
-import { useRef, useState, type ComponentProps } from "react";
-import { StyleSheet, Switch, View } from "react-native";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { Alert, StyleSheet, Switch, useWindowDimensions, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { ContactSchema, type Memory } from "@context/shared";
+import { ContactSchema, type Contact, type Memory } from "@context/shared";
 import { DictationControl } from "@/components/dictation-control";
 import {
   editableSocialLinks,
@@ -24,10 +24,23 @@ import {
   symbols,
 } from "@/components/ui";
 import { colors, spacing } from "@/constants/theme";
+import { shouldStackSharedRow } from "@/lib/accessibility-layout";
 import { findContactByIdentity } from "@/lib/contact-identity";
+import { duplicateContactUpdates, duplicateResolutionMessage } from "@/lib/duplicate-contact-resolution";
 import { createContactId } from "@/lib/entity-id";
 import { createModelContactDraft } from "@/lib/local-model";
-import { canPickProfilePhoto, deletePrivateProfilePhoto, pickProfilePhoto } from "@/lib/profile-photo";
+import { mutationErrorMessage } from "@/lib/mutation-error";
+import {
+  abandonProfilePhotoUris,
+  createProfilePhotoDraft,
+  forgetCleanedProfilePhotoUris,
+  removeProfilePhoto,
+  replacementCleanupUris,
+  stageProfilePhoto,
+  visibleProfilePhotoUri,
+  type ProfilePhotoDraft,
+} from "@/lib/profile-photo-lifecycle";
+import { canPickProfilePhoto, deletePrivateProfilePhotos, pickProfilePhoto } from "@/lib/profile-photo";
 import { useOnDeviceDictation } from "@/lib/use-on-device-dictation";
 import { useAppStore } from "@/store/app-store";
 
@@ -42,6 +55,8 @@ function valueOrCurrent(extracted: string | undefined, current: string): string 
 export default function NewContactScreen() {
   const params = useLocalSearchParams<{ eventId?: string | string[]; global?: string | string[] }>();
   const router = useRouter();
+  const { fontScale, width } = useWindowDimensions();
+  const stackPhotoRow = shouldStackSharedRow({ fontScale, width });
   const contacts = useAppStore((state) => state.contacts);
   const events = useAppStore((state) => state.events);
   const currentEventId = useAppStore((state) => state.currentEventId);
@@ -49,6 +64,7 @@ export default function NewContactScreen() {
   const addContact = useAppStore((state) => state.addContact);
   const addContactToEvent = useAppStore((state) => state.addContactToEvent);
   const addMemory = useAppStore((state) => state.addMemory);
+  const updateMemory = useAppStore((state) => state.updateMemory);
   const requestedEventId = firstParam(params.eventId);
   const saveGlobally = firstParam(params.global) === "1";
   const event = events.find((item) => item.id === requestedEventId)
@@ -64,32 +80,77 @@ export default function NewContactScreen() {
   const [relationshipContext, setRelationshipContext] = useState("");
   const [notes, setNotes] = useState("");
   const [socialLinks, setSocialLinks] = useState<EditableSocialLink[]>([]);
-  const [photoUri, setPhotoUri] = useState<string>();
+  const [photoDraft, setPhotoDraft] = useState<ProfilePhotoDraft>(() => createProfilePhotoDraft());
   const [includeInEvent, setIncludeInEvent] = useState(Boolean(event));
-  const [recognitionEnabled, setRecognitionEnabled] = useState(false);
   const [modelBusy, setModelBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [pendingSavedContactId, setPendingSavedContactId] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [error, setError] = useState<string>();
   const modelRequest = useRef(0);
+  const mounted = useRef(true);
+  const photoDraftRef = useRef(photoDraft);
+  const retiredPhotoUris = useRef<string[]>([]);
+  const initialMemoryId = useRef(`memory-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`);
   const dictation = useOnDeviceDictation();
-  const busy = dictation.busy || modelBusy || photoBusy;
+  const busy = dictation.busy || modelBusy || photoBusy || saveBusy;
+  const photoUri = visibleProfilePhotoUri(photoDraft);
+
+  const applyPhotoDraft = (next: ProfilePhotoDraft) => {
+    photoDraftRef.current = next;
+    if (mounted.current) setPhotoDraft(next);
+  };
+
+  const cleanupTrackedPhotos = async (targets: readonly string[]): Promise<string[]> => {
+    const failed = await deletePrivateProfilePhotos(targets);
+    const failedSet = new Set(failed);
+    const cleaned = targets.filter((uri) => !failedSet.has(uri));
+    applyPhotoDraft(forgetCleanedProfilePhotoUris(photoDraftRef.current, cleaned));
+    return failed;
+  };
+
+  const cleanupRetiredPhotos = async (): Promise<string[]> => {
+    const failed = await deletePrivateProfilePhotos(retiredPhotoUris.current);
+    retiredPhotoUris.current = failed;
+    return failed;
+  };
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      modelRequest.current += 1;
+      void deletePrivateProfilePhotos([
+        ...abandonProfilePhotoUris(photoDraftRef.current),
+        ...retiredPhotoUris.current,
+      ]);
+    };
+  }, []);
 
   const close = async () => {
+    if (saveBusy || pendingSavedContactId) return;
     modelRequest.current += 1;
-    if (dictation.busy) await dictation.cancel();
-    await deletePrivateProfilePhoto(photoUri);
-    if (router.canGoBack()) router.back();
-    else router.replace("/people");
+    try {
+      try {
+        if (dictation.busy) await dictation.cancel();
+      } finally {
+        await cleanupTrackedPhotos(abandonProfilePhotoUris(photoDraftRef.current));
+        await cleanupRetiredPhotos();
+      }
+    } finally {
+      if (router.canGoBack()) router.back();
+      else router.replace("/people");
+    }
   };
 
   const fillDetails = async () => {
     if (dictation.busy) {
-      setError("Stop dictation before asking Gemma to fill the details.");
+      setError("Stop dictation before asking Smart Assist to fill the details.");
       return;
     }
     if (!localToolsEnabled) {
-      setError("Turn on On-Device Assistance in Settings, then download Gemma to fill details privately.");
+      setError("Set up Smart Assist before asking it to fill details.");
       return;
     }
     const description = intake.trim();
@@ -114,12 +175,12 @@ export default function NewContactScreen() {
       setRelationshipContext((current) => valueOrCurrent(draft.relationshipContext, current));
       setNotes((current) => valueOrCurrent(draft.notes?.slice(0, 500), current));
       if (draft.socialLinks.length) setSocialLinks(editableSocialLinks(draft.socialLinks));
-      setNotice(`Gemma filled the details on this iPhone using ${result.model}. Review everything before you add the person.`);
+      setNotice("Smart Assist filled the details. Review everything before you add the person.");
     } catch (caught) {
       if (request !== modelRequest.current) return;
       setError(caught instanceof Error
         ? caught.message
-        : "Gemma could not fill these details. Your description is still here, and you can enter them manually.");
+        : "Smart Assist could not fill these details. Your description is still here, and you can enter them manually.");
     } finally {
       if (request === modelRequest.current) setModelBusy(false);
     }
@@ -131,32 +192,200 @@ export default function NewContactScreen() {
     try {
       const selected = await pickProfilePhoto();
       if (selected) {
-        await deletePrivateProfilePhoto(photoUri);
-        setPhotoUri(selected);
+        if (!mounted.current) {
+          await deletePrivateProfilePhotos([selected]);
+          return;
+        }
+        const next = stageProfilePhoto(photoDraftRef.current, selected);
+        applyPhotoDraft(next);
+        const failed = await cleanupTrackedPhotos(replacementCleanupUris(next));
+        if (failed.length) {
+          setError("The new photo is staged, but an older selection could not be removed yet. Context will retry before saving or closing.");
+        }
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Context could not add that photo.");
+      if (mounted.current) setError(caught instanceof Error ? caught.message : "Context could not add that photo.");
     } finally {
-      setPhotoBusy(false);
+      if (mounted.current) setPhotoBusy(false);
     }
   };
 
-  const save = () => {
+  const addNotesMemory = async (contactId: string) => {
+    const cleanNotes = notes.trim();
+    if (!cleanNotes) return;
+    const existing = useAppStore.getState().contacts
+      .find((contact) => contact.id === contactId)
+      ?.timeline.find((memory) => memory.id === initialMemoryId.current);
+    if (existing) {
+      await updateMemory(contactId, existing.id, {
+        summary: cleanNotes.slice(0, 500),
+        details: cleanNotes,
+      });
+      return;
+    }
+    const now = new Date().toISOString();
+    const memory: Memory = {
+      id: initialMemoryId.current,
+      contactId,
+      summary: cleanNotes.slice(0, 500),
+      details: cleanNotes,
+      tags: ["first impression"],
+      nextSteps: [],
+      source: dictation.state.targetId === "new-person-description" && dictation.state.finalizedText.trim() ? "voice" : "text",
+      occurredAt: now,
+      createdAt: now,
+    };
+    await addMemory(memory);
+  };
+
+  const openSavedContact = (contactId: string) => {
+    router.replace({ pathname: "/contact/[id]", params: { id: contactId } });
+  };
+
+  const finishPendingSave = async () => {
+    if (!pendingSavedContactId) return;
+    setSaveBusy(true);
+    setError(undefined);
+    try {
+      if (event && includeInEvent) await addContactToEvent(pendingSavedContactId, event.id);
+      await addNotesMemory(pendingSavedContactId);
+      const failed = await cleanupRetiredPhotos();
+      if (failed.length) {
+        setError("The person is saved, but the previous private photo still needs cleanup. Tap Finish to retry.");
+        return;
+      }
+      openSavedContact(pendingSavedContactId);
+    } catch (caught) {
+      setError(mutationErrorMessage(
+        caught,
+        "The person is saved, but Context could not finish the note or event link. Your details are still here; tap Finish to retry.",
+      ));
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
+  const preparePhotoCommit = async (): Promise<boolean> => {
+    const failed = await cleanupTrackedPhotos(replacementCleanupUris(photoDraftRef.current));
+    if (!failed.length) return true;
+    setError("Context could not remove an older staged photo. Try saving again; your current photo and details are still here.");
+    return false;
+  };
+
+  const saveDraftSeparately = async (draft: Contact) => {
+    if (!mounted.current) return;
+    setSaveBusy(true);
+    setError(undefined);
+    try {
+      if (!await preparePhotoCommit() || !mounted.current) return;
+      try {
+        await addContact(draft, event && includeInEvent ? event.id : null);
+      } catch (caught) {
+        await cleanupTrackedPhotos(abandonProfilePhotoUris(photoDraftRef.current));
+        applyPhotoDraft(createProfilePhotoDraft());
+        setError(mutationErrorMessage(
+          caught,
+          "Context could not save this person. The staged photo was removed; your other entered details are still here.",
+        ));
+        return;
+      }
+      const saved = useAppStore.getState().contacts.find((item) => item.id === draft.id);
+      if (!saved || saved.photoUri !== draft.photoUri) {
+        await cleanupTrackedPhotos(abandonProfilePhotoUris(photoDraftRef.current));
+        applyPhotoDraft(createProfilePhotoDraft());
+        setError("Context could not save this person. The staged photo was removed; your other entered details are still here.");
+        return;
+      }
+      applyPhotoDraft(createProfilePhotoDraft(draft.photoUri));
+      try {
+        await addNotesMemory(draft.id);
+      } catch (caught) {
+        setPendingSavedContactId(draft.id);
+        setError(mutationErrorMessage(
+          caught,
+          "The person is saved, but Context could not finish the note. Your details are still here; tap Finish to retry.",
+        ));
+        return;
+      }
+      openSavedContact(draft.id);
+    } finally {
+      if (mounted.current) setSaveBusy(false);
+    }
+  };
+
+  const updateExistingContact = async (existing: Contact, draft: Contact) => {
+    if (!mounted.current) return;
+    setSaveBusy(true);
+    setError(undefined);
+    try {
+      if (!await preparePhotoCommit() || !mounted.current) return;
+      // Removing a photo in the New Person form abandons that new selection;
+      // it must not silently delete a photo already owned by a duplicate.
+      const photoIntent = photoDraftRef.current.selection.kind === "staged" ? "replace" : "preserve";
+      const updates = duplicateContactUpdates(existing, draft, photoIntent);
+      const merged = ContactSchema.safeParse({ ...existing, ...updates });
+      if (!merged.success) {
+        setError(merged.error.issues[0]?.message ?? "Context could not combine these details with the existing person.");
+        return;
+      }
+      try {
+        await useAppStore.getState().updateContact(existing.id, updates);
+      } catch {
+        await cleanupTrackedPhotos(abandonProfilePhotoUris(photoDraftRef.current));
+        applyPhotoDraft(createProfilePhotoDraft());
+        setError("Context could not update the existing person. The staged photo was removed; your other entered details are still here.");
+        return;
+      }
+      const stagedPhoto = photoDraftRef.current.selection.kind === "staged"
+        ? photoDraftRef.current.selection.uri
+        : undefined;
+      const committedPhoto = photoIntent === "preserve" ? existing.photoUri : stagedPhoto;
+      applyPhotoDraft(createProfilePhotoDraft(committedPhoto));
+      retiredPhotoUris.current = existing.photoUri && existing.photoUri !== committedPhoto
+        ? [existing.photoUri]
+        : [];
+      const saved = useAppStore.getState().contacts.find((item) => item.id === existing.id);
+      if (!saved || saved.photoUri !== merged.data.photoUri || saved.displayName !== merged.data.displayName) {
+        setPendingSavedContactId(existing.id);
+        setError("The person was updated, but Context could not finish verifying private photo cleanup. Tap Finish to retry.");
+        return;
+      }
+      try {
+        if (event && includeInEvent) await addContactToEvent(existing.id, event.id);
+        await addNotesMemory(existing.id);
+      } catch (caught) {
+        setPendingSavedContactId(existing.id);
+        setError(mutationErrorMessage(
+          caught,
+          "The person is updated, but Context could not finish the note or event link. Your details are still here; tap Finish to retry.",
+        ));
+        return;
+      }
+      const failed = await cleanupRetiredPhotos();
+      if (failed.length) {
+        setPendingSavedContactId(existing.id);
+        setError("The person was updated and linked as selected, but the previous private photo still needs cleanup. Tap Finish to retry.");
+        return;
+      }
+      openSavedContact(existing.id);
+    } finally {
+      if (mounted.current) setSaveBusy(false);
+    }
+  };
+
+  const save = async () => {
+    if (pendingSavedContactId) {
+      await finishPendingSave();
+      return;
+    }
     if (busy) {
-      setError("Finish the current dictation or on-device task before adding this person.");
+      setError("Finish the current dictation or Smart Assist task before adding this person.");
       return;
     }
     const name = displayName.trim();
     const cleanCompany = company.trim();
     if (!name) {
       setError("Add a name before saving this person.");
-      return;
-    }
-
-    const existing = findContactByIdentity(contacts, name, cleanCompany);
-    if (existing) {
-      if (event && includeInEvent) addContactToEvent(existing.id, event.id);
-      router.replace({ pathname: "/contact/[id]", params: { id: existing.id } });
       return;
     }
 
@@ -178,7 +407,7 @@ export default function NewContactScreen() {
       metAt: metAt.trim() || undefined,
       relationshipContext: relationshipContext.trim() || undefined,
       conversationTopics: [],
-      recognitionEnabled: Boolean(event && includeInEvent && recognitionEnabled),
+      recognitionEnabled: false,
       timeline: [],
     });
     if (!parsed.success) {
@@ -186,42 +415,42 @@ export default function NewContactScreen() {
       return;
     }
 
-    addContact(parsed.data, event && includeInEvent ? event.id : null);
-    const cleanNotes = notes.trim();
-    if (cleanNotes) {
-      const now = new Date().toISOString();
-      const memory: Memory = {
-        id: `memory-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-        contactId: id,
-        summary: cleanNotes.slice(0, 500),
-        tags: ["first impression"],
-        nextSteps: [],
-        source: dictation.state.targetId === "new-person-description" && dictation.state.finalizedText.trim() ? "voice" : "text",
-        occurredAt: now,
-        createdAt: now,
-      };
-      addMemory(memory);
+    const existing = findContactByIdentity(contacts, name, cleanCompany);
+    if (!existing) {
+      await saveDraftSeparately(parsed.data);
+      return;
     }
-    router.replace({ pathname: "/contact/[id]", params: { id } });
+
+    Alert.alert(
+      "Possible Duplicate",
+      duplicateResolutionMessage(existing.displayName, event?.name, Boolean(event && includeInEvent)),
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Save Separately", onPress: () => { void saveDraftSeparately(parsed.data); } },
+        { text: "Update Existing", onPress: () => { void updateExistingContact(existing, parsed.data); } },
+      ],
+    );
   };
 
   const contextualStrings = [displayName, company, role, event?.name]
     .filter((value): value is string => Boolean(value));
+  const formLocked = busy || Boolean(pendingSavedContactId);
 
   return (
     <>
       <Stack.Screen
         options={{
           title: "New Person",
-          headerLeft: () => <BarButton onPress={() => { void close(); }}>Cancel</BarButton>,
-          headerRight: () => <BarButton disabled={busy} onPress={save}>Add</BarButton>,
+          gestureEnabled: !saveBusy && !pendingSavedContactId,
+          headerLeft: () => <BarButton disabled={saveBusy || Boolean(pendingSavedContactId)} onPress={() => { void close(); }}>Cancel</BarButton>,
+          headerRight: () => <BarButton disabled={busy} onPress={() => { void save(); }}>{pendingSavedContactId ? "Finish" : "Add"}</BarButton>,
         }}
       />
       <Screen contentContainerStyle={styles.screen}>
         <View style={styles.intro}>
-          <AppText accessibilityRole="header" emphasis="semibold" role="title2">Add anyone you want to remember</AppText>
+          <AppText accessibilityRole="header" emphasis="semibold" role="title2">Add someone you want to remember</AppText>
           <AppText role="callout" tone="secondary">
-            A neighbor, customer, coworker, teacher, someone from a shop, or a person you met at an event—all belong here.
+            Start with a name and one useful detail. Everything else is optional.
           </AppText>
         </View>
 
@@ -229,14 +458,14 @@ export default function NewContactScreen() {
         <SuccessBanner message={notice} />
 
         <ListSection
-          footer="Speech and Gemma stay on this iPhone. Gemma only fills what you say; you review it before saving."
+          footer="Review every suggestion before saving."
           groupStyle={styles.intakeGroup}
-          title="Describe Once"
+          title="Quick Add"
         >
           <FormField
             accessibilityLabel="Describe this person"
             autoCapitalize="sentences"
-            editable={!busy}
+            editable={!formLocked}
             label="What do you remember?"
             maxLength={4_000}
             multiline
@@ -259,42 +488,52 @@ export default function NewContactScreen() {
             targetId="new-person-description"
             value={intake}
           />
-          <Button
-            disabled={!intake.trim() || dictation.busy || photoBusy}
-            loading={modelBusy}
-            onPress={() => { void fillDetails(); }}
-            symbol={symbols.sparkles}
-          >
-            Fill Details with Gemma
-          </Button>
+          {localToolsEnabled ? (
+            <Button
+              disabled={!intake.trim() || formLocked}
+              loading={modelBusy}
+              onPress={() => { void fillDetails(); }}
+              symbol={symbols.sparkles}
+            >
+              Suggest Details
+            </Button>
+          ) : (
+            <Button onPress={() => router.push("/smart-assist")} symbol={symbols.sparkles} variant="secondary">
+              Set Up Smart Assist
+            </Button>
+          )}
         </ListSection>
 
         <ListSection groupStyle={styles.photoGroup} title="Photo">
-          <View style={styles.photoRow}>
+          <View style={[styles.photoRow, stackPhotoRow && styles.photoRowStacked]}>
             <Avatar name={displayName || "New Person"} photoUri={photoUri} size={76} />
-            <View style={styles.photoActions}>
+            <View style={[styles.photoActions, stackPhotoRow && styles.photoActionsStacked]}>
               {canPickProfilePhoto() ? (
-                <Button disabled={dictation.busy || modelBusy} loading={photoBusy} onPress={() => { void choosePhoto(); }} symbol={symbols.camera} variant="secondary">
+                <Button disabled={formLocked} loading={photoBusy} onPress={() => { void choosePhoto(); }} symbol={symbols.camera} variant="secondary">
                   {photoUri ? "Change Photo" : "Choose Photo"}
                 </Button>
               ) : null}
-              {photoUri ? <BarButton destructive disabled={busy} onPress={() => { void deletePrivateProfilePhoto(photoUri); setPhotoUri(undefined); }}>Remove Photo</BarButton> : null}
+              {photoUri ? <BarButton destructive disabled={formLocked} onPress={() => {
+                const next = removeProfilePhoto(photoDraftRef.current);
+                applyPhotoDraft(next);
+                void cleanupTrackedPhotos(replacementCleanupUris(next));
+              }}>Remove Photo</BarButton> : null}
             </View>
           </View>
         </ListSection>
 
         <ListSection groupStyle={styles.formGroup} title="Details">
-          <ProfileField autoCapitalize="words" disabled={busy} label="Name" maxLength={100} onChange={setDisplayName} placeholder="Maya Chen" value={displayName} />
-          <ProfileField autoCapitalize="words" disabled={busy} label="Company or place" maxLength={120} onChange={setCompany} placeholder="Neighborhood Superstore" value={company} />
-          <ProfileField autoCapitalize="words" disabled={busy} label="Role" maxLength={120} onChange={setRole} placeholder="Bakery manager" value={role} />
-          <ProfileField autoCapitalize="none" autoComplete="email" disabled={busy} keyboardType="email-address" label="Email" maxLength={254} onChange={setEmail} placeholder="maya@example.com" value={email} />
-          <ProfileField autoCapitalize="none" autoComplete="tel" disabled={busy} keyboardType="phone-pad" label="Phone" maxLength={40} onChange={setPhone} placeholder="(204) 555-0123" value={phone} />
-          <ProfileField disabled={busy} label="Where you know them from" maxLength={160} onChange={setMetAt} placeholder="Superstore on Portage Avenue" value={metAt} />
-          <ProfileField disabled={busy} label="Who they are to you" maxLength={500} multiline onChange={setRelationshipContext} placeholder="Friendly staff member I see most Saturdays" value={relationshipContext} />
-          <ProfileField disabled={busy} label="Notes to remember" last maxLength={500} multiline onChange={setNotes} placeholder="Asked about the sourdough starter; moving to a new shift next month" value={notes} />
+          <ProfileField autoCapitalize="words" disabled={formLocked} label="Name" maxLength={100} onChange={setDisplayName} placeholder="Maya Chen" value={displayName} />
+          <ProfileField autoCapitalize="words" disabled={formLocked} label="Company or place" maxLength={120} onChange={setCompany} placeholder="Neighborhood Superstore" value={company} />
+          <ProfileField autoCapitalize="words" disabled={formLocked} label="Role" maxLength={120} onChange={setRole} placeholder="Bakery manager" value={role} />
+          <ProfileField autoCapitalize="none" autoComplete="email" disabled={formLocked} keyboardType="email-address" label="Email" maxLength={254} onChange={setEmail} placeholder="maya@example.com" value={email} />
+          <ProfileField autoCapitalize="none" autoComplete="tel" disabled={formLocked} keyboardType="phone-pad" label="Phone" maxLength={40} onChange={setPhone} placeholder="(204) 555-0123" value={phone} />
+          <ProfileField disabled={formLocked} label="Where you know them from" maxLength={160} onChange={setMetAt} placeholder="Superstore on Portage Avenue" value={metAt} />
+          <ProfileField disabled={formLocked} label="Who they are to you" maxLength={500} multiline onChange={setRelationshipContext} placeholder="Friendly staff member I see most Saturdays" value={relationshipContext} />
+          <ProfileField disabled={formLocked} label="Notes to remember" last maxLength={500} multiline onChange={setNotes} placeholder="Asked about the sourdough starter; moving to a new shift next month" value={notes} />
         </ListSection>
 
-        <SocialLinksEditor disabled={busy} onChange={setSocialLinks} rows={socialLinks} />
+        <SocialLinksEditor disabled={formLocked} onChange={setSocialLinks} rows={socialLinks} />
 
         {event ? (
           <ListSection footer="People can live in your directory without belonging to an event." title="Event (Optional)">
@@ -302,32 +541,16 @@ export default function NewContactScreen() {
               accessoryNode={(
                 <Switch
                   accessibilityLabel={`Include this person in ${event.name}`}
-                  disabled={busy}
+                  disabled={formLocked}
                   onValueChange={setIncludeInEvent}
                   trackColor={{ false: colors.fillStrong, true: colors.primary }}
                   value={includeInEvent}
                 />
               )}
-              last={!includeInEvent}
+              last
               subtitle={includeInEvent ? "They will also appear in this event" : "They will only appear in People"}
               title={event.name}
             />
-            {includeInEvent ? (
-              <ListRow
-                accessoryNode={(
-                  <Switch
-                    accessibilityLabel="Allow quick badge matching"
-                    disabled={busy}
-                    onValueChange={setRecognitionEnabled}
-                    trackColor={{ false: colors.fillStrong, true: colors.primary }}
-                    value={recognitionEnabled}
-                  />
-                )}
-                last
-                subtitle="Match this person only when you scan their Context badge"
-                title="Quick Badge Matching"
-              />
-            ) : null}
           </ListSection>
         ) : null}
       </Screen>
@@ -365,5 +588,7 @@ const styles = StyleSheet.create({
   fieldSeparated: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
   photoGroup: { padding: spacing.lg },
   photoRow: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  photoRowStacked: { flexDirection: "column", alignItems: "flex-start" },
   photoActions: { flex: 1, minWidth: 0, alignItems: "stretch", gap: spacing.xs },
+  photoActionsStacked: { width: "100%", flex: 0 },
 });

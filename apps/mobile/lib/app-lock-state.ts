@@ -9,6 +9,7 @@ export interface AppLockState {
   attempt: number;
   autoUnlockPending: boolean;
   backgroundedDuringAuthentication: boolean;
+  lastNativeBackgroundEpoch: number;
   error: string | undefined;
 }
 
@@ -17,9 +18,18 @@ export type AppLockEvent =
   | { type: "ENABLE_AFTER_AUTHENTICATION" }
   | { type: "DISABLE" }
   | { type: "APP_STATE_CHANGED"; appState: AppStateStatus }
+  | { type: "NATIVE_BACKGROUND_REENTRY"; epoch: number }
   | { type: "REQUEST_UNLOCK" }
   | { type: "AUTHENTICATION_SUCCEEDED"; attempt: number }
   | { type: "AUTHENTICATION_FAILED"; attempt: number; message: string };
+
+export function isAppLockConfigurationReady(
+  hydrated: boolean,
+  hydrationError: string | null,
+  isNative: boolean,
+): boolean {
+  return hydrated && hydrationError === null && isNative;
+}
 
 export function createInitialAppLockState(): AppLockState {
   return {
@@ -30,6 +40,7 @@ export function createInitialAppLockState(): AppLockState {
     attempt: 0,
     autoUnlockPending: false,
     backgroundedDuringAuthentication: false,
+    lastNativeBackgroundEpoch: 0,
     error: undefined,
   };
 }
@@ -114,6 +125,25 @@ export function reduceAppLock(state: AppLockState, event: AppLockEvent): AppLock
         return beginAuthentication(state);
       }
       return state;
+    }
+
+    case "NATIVE_BACKGROUND_REENTRY": {
+      if (!state.enabled || event.epoch <= state.lastNativeBackgroundEpoch) return state;
+      const returned = { ...state, lastNativeBackgroundEpoch: event.epoch };
+      if (state.phase === "authenticating") {
+        return {
+          ...returned,
+          autoUnlockPending: false,
+          backgroundedDuringAuthentication: true,
+        };
+      }
+      return beginAuthentication({
+        ...returned,
+        phase: "locked",
+        autoUnlockPending: true,
+        backgroundedDuringAuthentication: false,
+        error: undefined,
+      });
     }
 
     case "REQUEST_UNLOCK":

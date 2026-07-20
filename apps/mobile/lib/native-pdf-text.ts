@@ -18,11 +18,11 @@ interface NativePDFTextExtractorModule {
 
 function nativeModule(): NativePDFTextExtractorModule {
   if (Platform.OS !== "ios") {
-    throw new Error("Private PDF roster import is currently available only in the native iPhone app.");
+    throw new Error("PDF roster import is currently available only in the iPhone app.");
   }
   const module = NativeModules.ContextPDFTextExtractor as NativePDFTextExtractorModule | undefined;
   if (!module) {
-    throw new Error("This app build does not include private PDF import. Rebuild the native iOS app.");
+    throw new Error("This app build does not include PDF import. Rebuild the iOS app.");
   }
   return module;
 }

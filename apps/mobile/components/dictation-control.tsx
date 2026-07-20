@@ -18,19 +18,19 @@ export interface DictationControlProps extends Omit<DictationTargetOptions, "tar
 function phaseLabel(phase: OnDeviceDictationController["state"]["phase"], progress?: number): string {
   switch (phase) {
     case "preparing":
-      return "Preparing private dictation…";
+      return "Preparing dictation…";
     case "downloading-assets":
       return progress === undefined
-        ? "Preparing the iPhone’s speech model…"
-        : `Preparing the iPhone’s speech model · ${Math.round(progress * 100)}%`;
+        ? "Preparing speech recognition…"
+        : `Preparing speech recognition · ${Math.round(progress * 100)}%`;
     case "recording":
-      return "Listening on this iPhone…";
+      return "Listening…";
     case "finalizing":
       return "Finishing transcription…";
     case "error":
       return "Dictation stopped";
     case "unavailable":
-      return "On-device dictation unavailable";
+      return "Dictation unavailable";
     case "idle":
       return "";
   }
@@ -119,7 +119,7 @@ export function DictationControl({
             accessibilityLabel={`Dictate ${label}`}
             accessibilityHint={blockedByAnotherField
               ? "Finish dictation in the other field first"
-              : "Starts private on-device dictation"}
+              : "Starts dictation"}
             disabled={disabled || blockedByAnotherField}
             onPress={() => { void begin(); }}
             style={styles.dictationIcon}
@@ -130,7 +130,7 @@ export function DictationControl({
             accessibilityLabel={`Dictate ${label}`}
             accessibilityHint={blockedByAnotherField
               ? "Finish dictation in the other field first"
-              : "Starts private on-device dictation"}
+              : "Starts dictation"}
             disabled={disabled || blockedByAnotherField}
             onPress={() => { void begin(); }}
             style={styles.action}

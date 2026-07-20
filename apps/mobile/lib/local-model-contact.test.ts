@@ -64,7 +64,7 @@ describe("on-device contact extraction", () => {
   it("does not fall back to a network service outside the native iPhone app", async () => {
     runtime.os = "web";
     await expect(createModelContactDraft("Jordan from the grocery store"))
-      .rejects.toThrow(/native iPhone app/);
+      .rejects.toThrow(/iPhone app/);
     expect(nativeModel.generateOnDevice).not.toHaveBeenCalled();
   });
 });

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, StyleSheet, Switch, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, StyleSheet, Switch, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Sharing from "expo-sharing";
-import { useRouter } from "expo-router";
-import { ExportBundleSchema, type ExportBundle, type LocalModelHealth } from "@context/shared";
-import { OnDeviceModelManager } from "@/components/on-device-model-manager";
+import { useFocusEffect, useRouter } from "expo-router";
+import { WorkspaceBackupSchema, type LocalModelHealth, type WorkspaceBackup } from "@context/shared";
 import {
   AppText,
   Button,
@@ -20,11 +19,32 @@ import {
 import { colors, spacing } from "@/constants/theme";
 import { deviceAuthenticationErrorMessage } from "@/lib/app-lock-state";
 import { clearAllFaceTemplates } from "@/lib/face-templates";
+import {
+  assertImportFileSize,
+  utf8ByteLength,
+  type LocalFileStat,
+} from "@/lib/import-file-safety";
 import { getLocalModelHealth } from "@/lib/local-model";
-import { clearUpdateWatchData } from "@/lib/update-watcher";
+import { clearPrivateProfilePhotos } from "@/lib/profile-photo";
+import { clearUpdateWatchData } from "@/lib/legacy-update-watch-cleanup";
+import { createWorkspaceBackupV2, restoreWorkspaceBackup } from "@/lib/workspace-backup";
+import {
+  clearSensitiveTemporaryFiles,
+  deletePickedDocumentCacheFile,
+} from "@/lib/sensitive-cache";
 import { useAppStore } from "@/store/app-store";
 
-type WorkspaceAction = "reset" | "delete" | "restore";
+type ConfirmedWorkspaceAction = "reset" | "delete" | "restore";
+type WorkspaceAction = "export" | "choose-restore" | ConfirmedWorkspaceAction;
+
+const MAX_BACKUP_FILE_BYTES = 50_000_000;
+
+async function failedCleanupLabels(
+  tasks: Array<{ label: string; run: () => Promise<unknown> }>,
+): Promise<string[]> {
+  const results = await Promise.allSettled(tasks.map((task) => task.run()));
+  return tasks.flatMap((task, index) => results[index]?.status === "rejected" ? [task.label] : []);
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -34,18 +54,17 @@ export default function SettingsScreen() {
   const setAppLockEnabled = useAppStore((state) => state.setAppLockEnabled);
   const contacts = useAppStore((state) => state.contacts);
   const events = useAppStore((state) => state.events);
-  const exportBundle = useAppStore((state) => state.exportBundle);
-  const replaceBundle = useAppStore((state) => state.replaceBundle);
   const resetSample = useAppStore((state) => state.resetSample);
   const deleteAllData = useAppStore((state) => state.deleteAllData);
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState<string>();
-  const [destructiveBusy, setDestructiveBusy] = useState(false);
+  const [workspaceAction, setWorkspaceAction] = useState<WorkspaceAction>();
   const [modelHealth, setModelHealth] = useState<LocalModelHealth>();
   const [modelError, setModelError] = useState<string>();
   const [modelBusy, setModelBusy] = useState(false);
   const [appLockBusy, setAppLockBusy] = useState(false);
   const modelRequest = useRef(0);
+  const workspaceActionBusy = useRef(false);
 
   const memoryCount = useMemo(
     () => contacts.reduce((total, contact) => total + contact.timeline.length, 0),
@@ -58,15 +77,28 @@ export default function SettingsScreen() {
     setModelError(undefined);
     try {
       const health = await getLocalModelHealth();
-      if (request === modelRequest.current) setModelHealth(health);
+      if (request === modelRequest.current) {
+        setModelHealth(health);
+        if (
+          Platform.OS === "ios"
+          && health.status !== "ready"
+          && useAppStore.getState().localToolsEnabled
+        ) {
+          try {
+            await setLocalToolsEnabled(false);
+          } catch {
+            throw new Error("Context could not save the Smart Assist setting. Try again.");
+          }
+        }
+      }
     } catch (caught) {
       if (request !== modelRequest.current) return;
       setModelHealth(undefined);
-      setModelError(caught instanceof Error ? caught.message : "The local model service is unavailable.");
+      setModelError(caught instanceof Error ? caught.message : "Smart Assist is unavailable right now.");
     } finally {
       if (request === modelRequest.current) setModelBusy(false);
     }
-  }, []);
+  }, [setLocalToolsEnabled]);
 
   useEffect(() => {
     if (Platform.OS === "web" && localToolsEnabled) void checkLocalModel();
@@ -79,20 +111,30 @@ export default function SettingsScreen() {
     return () => { modelRequest.current += 1; };
   }, [checkLocalModel, localToolsEnabled]);
 
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== "ios") return undefined;
+    void checkLocalModel();
+    return () => { modelRequest.current += 1; };
+  }, [checkLocalModel]));
+
   const changeAppLock = async (enabled: boolean) => {
     setError(undefined);
     setSuccess(undefined);
-    if (!enabled) {
-      setAppLockEnabled(false);
-      setSuccess("App Lock is off.");
-      return;
-    }
     if (Platform.OS === "web") {
       setError("App Lock uses device authentication and is not available in a browser.");
       return;
     }
     setAppLockBusy(true);
     try {
+      if (!enabled) {
+        try {
+          await setAppLockEnabled(false);
+        } catch {
+          throw new Error("Context could not save this change, so App Lock remains on. Try again.");
+        }
+        setSuccess("App Lock is off.");
+        return;
+      }
       const enrolledLevel = await LocalAuthentication.getEnrolledLevelAsync();
       if (enrolledLevel === LocalAuthentication.SecurityLevel.NONE) {
         throw new Error("Set up Face ID, Touch ID, or a device passcode before enabling App Lock.");
@@ -105,7 +147,11 @@ export default function SettingsScreen() {
         disableDeviceFallback: false,
       });
       if (!result.success) throw new Error(deviceAuthenticationErrorMessage(result.error, "enable"));
-      setAppLockEnabled(true);
+      try {
+        await setAppLockEnabled(true);
+      } catch {
+        throw new Error("Context could not save this change, so App Lock remains off. Try again.");
+      }
       setSuccess("App Lock is on. Context will lock whenever you leave the app.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "App Lock could not be enabled.");
@@ -115,10 +161,17 @@ export default function SettingsScreen() {
   };
 
   const exportData = async () => {
+    if (workspaceActionBusy.current) return;
+    workspaceActionBusy.current = true;
+    setWorkspaceAction("export");
     setError(undefined);
     setSuccess(undefined);
-    const json = JSON.stringify(exportBundle(), null, 2);
     try {
+      const backup = await createWorkspaceBackupV2();
+      const json = JSON.stringify(backup);
+      if (utf8ByteLength(json) > MAX_BACKUP_FILE_BYTES) {
+        throw new Error("This workspace is larger than the 50 MB portable backup limit. Remove or replace large profile photos, then try again.");
+      }
       if (Platform.OS === "web") {
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -135,49 +188,77 @@ export default function SettingsScreen() {
         const uri = `${directory}context-backup-${Date.now()}.json`;
         try {
           await FileSystem.writeAsStringAsync(uri, json);
-          if (!(await Sharing.isAvailableAsync())) throw new Error("Sharing is unavailable on this device.");
+          if (!(await Sharing.isAvailableAsync())) throw new Error("Sharing is unavailable right now.");
           await Sharing.shareAsync(uri, { mimeType: "application/json", dialogTitle: "Export Context backup" });
         } finally {
           await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
         }
       }
-      setSuccess("A portable JSON backup was created.");
+      setSuccess("Sharing closed for a portable workspace backup. Confirm that the destination saved the JSON file.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not export your data.");
+    } finally {
+      workspaceActionBusy.current = false;
+      setWorkspaceAction(undefined);
     }
   };
 
-  const runWorkspaceAction = async (action: WorkspaceAction, bundle?: ExportBundle) => {
-    setDestructiveBusy(true);
+  const runWorkspaceAction = async (action: ConfirmedWorkspaceAction, bundle?: WorkspaceBackup) => {
+    if (workspaceActionBusy.current) return;
+    workspaceActionBusy.current = true;
+    setWorkspaceAction(action);
     setError(undefined);
     setSuccess(undefined);
     try {
-      const cleanupResults = await Promise.allSettled([clearAllFaceTemplates(), clearUpdateWatchData()]);
-      const cleanupNote = cleanupResults.some((result) => result.status === "rejected")
-        ? " An unavailable optional PC companion may still need manual cleanup."
-        : "";
       if (action === "reset") {
-        resetSample();
-        setSuccess(`The sample workspace was restored.${cleanupNote}`);
+        await resetSample();
+        setSuccess("The sample workspace was restored.");
+        const failed = await failedCleanupLabels([
+          { label: "old matching data", run: clearAllFaceTemplates },
+          { label: "old supporting data", run: clearUpdateWatchData },
+          { label: "old private photos", run: clearPrivateProfilePhotos },
+          { label: "temporary import and backup files", run: clearSensitiveTemporaryFiles },
+        ]);
+        if (failed.length) setError(`The sample workspace is saved, but Context could not yet remove ${failed.join(", ")}. Try Restore Sample Data again to retry cleanup.`);
       } else if (action === "restore" && bundle) {
-        replaceBundle(bundle);
-        setSuccess(`Your backup was restored.${cleanupNote}`);
+        const result = await restoreWorkspaceBackup(bundle);
+        setSuccess("Your backup was restored.");
+        const failed = await failedCleanupLabels([
+          { label: "old matching data", run: clearAllFaceTemplates },
+          { label: "old supporting data", run: clearUpdateWatchData },
+        ]);
+        if (result.stalePhotoCleanupCount) failed.push(`${result.stalePhotoCleanupCount} old private photo ${result.stalePhotoCleanupCount === 1 ? "file" : "files"}`);
+        if (failed.length) setError(`The backup is saved, but Context could not yet remove ${failed.join(", ")}. Restoring the same backup again is safe.`);
       } else if (action === "delete") {
-        deleteAllData();
-        router.replace("/onboarding");
+        await deleteAllData();
+        const failed = await failedCleanupLabels([
+          { label: "matching data", run: clearAllFaceTemplates },
+          { label: "supporting data", run: clearUpdateWatchData },
+          { label: "private photos", run: clearPrivateProfilePhotos },
+          { label: "temporary import and backup files", run: clearSensitiveTemporaryFiles },
+        ]);
+        if (failed.length) {
+          setError(`Your people, memories, events, and follow-ups are erased. Context could not yet remove ${failed.join(", ")}. Tap Erase All Data again to retry cleanup.`);
+        } else {
+          router.replace("/onboarding");
+        }
+      } else {
+        throw new Error("No backup was selected.");
       }
-    } catch {
-      setError("Context could not finish that local workspace change. Your existing data was kept.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Context could not finish that workspace change.");
     } finally {
-      setDestructiveBusy(false);
+      workspaceActionBusy.current = false;
+      setWorkspaceAction(undefined);
     }
   };
 
-  const confirmWorkspaceAction = (action: WorkspaceAction, bundle?: ExportBundle) => {
+  const confirmWorkspaceAction = (action: ConfirmedWorkspaceAction, bundle?: WorkspaceBackup) => {
+    if (workspaceActionBusy.current) return;
     const copy = action === "delete"
       ? {
           title: "Erase all Context data?",
-          message: "This permanently removes people, events, memories, preferences, badge data, public sources, and pending suggestions from this device.",
+          message: "This permanently removes people, events, memories, follow-ups, preferences, and private supporting data.",
           confirm: "Erase All Data",
         }
       : action === "restore"
@@ -206,6 +287,10 @@ export default function SettingsScreen() {
   };
 
   const chooseBackup = async () => {
+    if (workspaceActionBusy.current) return;
+    let pickedCacheUri: string | undefined;
+    let selectedBundle: WorkspaceBackup | undefined;
+    setWorkspaceAction("choose-restore");
     setError(undefined);
     setSuccess(undefined);
     try {
@@ -217,22 +302,87 @@ export default function SettingsScreen() {
       if (result.canceled) return;
       const asset = result.assets[0];
       if (!asset) return;
-      if (asset.size && asset.size > 5_000_000) throw new Error("Backups must be smaller than 5 MB.");
-      const text = Platform.OS === "web"
-        ? await (await fetch(asset.uri)).text()
-        : await FileSystem.readAsStringAsync(asset.uri);
-      const parsed = ExportBundleSchema.safeParse(JSON.parse(text));
+      pickedCacheUri = asset.uri;
+      let text: string;
+      if (Platform.OS === "web") {
+        const response = await fetch(asset.uri);
+        if (!response.ok) throw new Error("That backup could not be opened.");
+        const blob = await response.blob();
+        assertImportFileSize({
+          reportedSize: asset.size ?? blob.size,
+          maximumBytes: MAX_BACKUP_FILE_BYTES,
+          tooLargeMessage: "Backups must be smaller than 50 MB.",
+          unverifiableMessage: "Context could not verify the backup size. Choose another file.",
+        });
+        text = await blob.text();
+      } else {
+        let stat: LocalFileStat | undefined;
+        try {
+          stat = await FileSystem.getInfoAsync(asset.uri);
+        } catch {
+          stat = { exists: false };
+        }
+        assertImportFileSize({
+          reportedSize: asset.size,
+          ...(stat ? { stat } : {}),
+          maximumBytes: MAX_BACKUP_FILE_BYTES,
+          tooLargeMessage: "Backups must be smaller than 50 MB.",
+          unverifiableMessage: "Context could not verify the backup size. Choose another file.",
+        });
+        text = await FileSystem.readAsStringAsync(asset.uri);
+      }
+      const parsed = WorkspaceBackupSchema.safeParse(JSON.parse(text));
       if (!parsed.success) throw new Error("That file is not a valid Context backup.");
-      confirmWorkspaceAction("restore", parsed.data);
+      selectedBundle = parsed.data;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not read that backup.");
+    } finally {
+      await deletePickedDocumentCacheFile(pickedCacheUri).catch(() => undefined);
+      setWorkspaceAction(undefined);
     }
+    if (selectedBundle) confirmWorkspaceAction("restore", selectedBundle);
   };
 
-  const modelStatus = modelHealth?.ok ? `${modelHealth.model} ready` : modelError ?? "Checking local model";
+  const modelStatus = modelHealth?.ok ? `${modelHealth.model} ready` : modelError ?? "Checking assistant";
+  const smartAssistStatus = modelBusy
+    ? "Checking"
+    : modelHealth?.status !== "ready"
+      ? "Not set up"
+      : localToolsEnabled
+        ? "Ready"
+        : "Off";
+  const blockingWorkspaceMessage = workspaceAction === "restore"
+    ? "Restoring your backup…"
+    : workspaceAction === "reset"
+      ? "Restoring sample data…"
+      : workspaceAction === "delete"
+        ? "Erasing local data…"
+        : undefined;
 
   return (
     <Screen contentContainerStyle={styles.screen}>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => undefined}
+        presentationStyle="overFullScreen"
+        transparent
+        visible={Boolean(blockingWorkspaceMessage)}
+      >
+        <View
+          accessibilityLabel={blockingWorkspaceMessage}
+          accessibilityLiveRegion="polite"
+          accessibilityViewIsModal
+          style={styles.workspaceBlocker}
+        >
+          <View style={styles.workspaceBlockerCard}>
+            <ActivityIndicator accessibilityLabel={blockingWorkspaceMessage} color={colors.primary} size="large" />
+            <AppText accessibilityRole="header" emphasis="semibold" role="headline">{blockingWorkspaceMessage}</AppText>
+            <AppText role="footnote" style={styles.workspaceBlockerCopy} tone="secondary">
+              Keep Context open until this finishes.
+            </AppText>
+          </View>
+        </View>
+      </Modal>
       <ErrorBanner message={error} />
       <SuccessBanner message={success} />
 
@@ -241,7 +391,7 @@ export default function SettingsScreen() {
           accessoryNode={(
             <Switch
               accessibilityLabel="App Lock"
-              disabled={appLockBusy || Platform.OS === "web"}
+              disabled={appLockBusy || Boolean(workspaceAction) || Platform.OS === "web"}
               onValueChange={(value) => { void changeAppLock(value); }}
               trackColor={{ false: colors.fillStrong, true: colors.primary }}
               value={appLockEnabled}
@@ -255,33 +405,51 @@ export default function SettingsScreen() {
       </ListSection>
 
       <ListSection
-        title="Intelligence"
-        footer={Platform.OS === "web" ? "Optional assistance connects only to the model running on this computer." : "Drafts and prompts remain editable until you save them."}
+        title="Smart Assist"
+        footer="Drafts and conversation starters remain editable until you save them."
       >
-        <ListRow
-          accessoryNode={(
-            <Switch
-              accessibilityLabel="Private smart assist"
-              onValueChange={setLocalToolsEnabled}
-              trackColor={{ false: colors.fillStrong, true: colors.primary }}
-              value={localToolsEnabled}
-            />
-          )}
-          last={!(Platform.OS === "web" && localToolsEnabled) && Platform.OS !== "ios"}
-          subtitle={Platform.OS === "web" ? "Use the local model on this computer" : "Create private drafts and conversation prompts"}
-          symbol={symbols.sparkles}
-          title="Private Smart Assist"
-        />
-        {Platform.OS === "web" && localToolsEnabled ? (
+        {Platform.OS === "ios" ? (
           <ListRow
-            accessoryNode={<Button loading={modelBusy} onPress={() => { void checkLocalModel(); }} variant="quiet">Check</Button>}
+            accessory="disclosure"
+            detail={smartAssistStatus}
             last
-            subtitle={modelStatus}
-            symbol={symbols.model}
-            title="Local Model"
+            onPress={() => router.push("/smart-assist")}
+            subtitle="Draft memories and conversation starters on this iPhone"
+            symbol={symbols.sparkles}
+            title="Smart Assist"
           />
-        ) : null}
-        {Platform.OS === "ios" ? <View style={styles.modelManager}><OnDeviceModelManager /></View> : null}
+        ) : (
+          <>
+            <ListRow
+              accessoryNode={(
+                <Switch
+                  accessibilityLabel="Smart Assist"
+                  disabled={Boolean(workspaceAction)}
+                  onValueChange={(enabled) => {
+                    void setLocalToolsEnabled(enabled).catch(() => {
+                      setError("Context could not save the Smart Assist setting. Nothing was changed; try again.");
+                    });
+                  }}
+                  trackColor={{ false: colors.fillStrong, true: colors.primary }}
+                  value={localToolsEnabled}
+                />
+              )}
+              last={!(Platform.OS === "web" && localToolsEnabled)}
+              subtitle="Create drafts and conversation prompts you can review"
+              symbol={symbols.sparkles}
+              title="Smart Assist"
+            />
+            {Platform.OS === "web" && localToolsEnabled ? (
+              <ListRow
+                accessoryNode={<Button loading={modelBusy} onPress={() => { void checkLocalModel(); }} variant="quiet">Check</Button>}
+                last
+                subtitle={modelStatus}
+                symbol={symbols.model}
+                title="Assistant Status"
+              />
+            ) : null}
+          </>
+        )}
       </ListSection>
 
       <ListSection title="Workspace">
@@ -291,23 +459,47 @@ export default function SettingsScreen() {
       </ListSection>
 
       <ListSection title="Data" footer="Backups are portable and unencrypted. Save them only in a location you trust.">
-        {Platform.OS !== "web" ? <ListRow onPress={() => router.push("/contacts-import")} symbol={symbols.import} title="Import from Contacts" /> : null}
-        <ListRow onPress={() => { void exportData(); }} symbol={symbols.export} title="Export Backup" />
-        <ListRow onPress={() => { void chooseBackup(); }} symbol={symbols.restore} title="Restore Backup" />
-        <ListRow last onPress={() => confirmWorkspaceAction("reset")} symbol={symbols.people} title="Restore Sample Data" />
+        {Platform.OS !== "web" ? <ListRow disabled={Boolean(workspaceAction)} onPress={() => router.push("/contacts-import")} symbol={symbols.import} title="Import from Contacts" /> : null}
+        <ListRow
+          {...(workspaceAction === "export" ? { detail: "Preparing backup…" } : {})}
+          disabled={Boolean(workspaceAction)}
+          onPress={() => { void exportData(); }}
+          symbol={symbols.export}
+          title="Export Backup"
+        />
+        <ListRow
+          {...(workspaceAction === "choose-restore"
+            ? { detail: "Reading backup…" }
+            : workspaceAction === "restore"
+              ? { detail: "Restoring backup…" }
+              : {})}
+          disabled={Boolean(workspaceAction)}
+          onPress={() => { void chooseBackup(); }}
+          symbol={symbols.restore}
+          title="Restore Backup"
+        />
+        <ListRow
+          {...(workspaceAction === "reset" ? { detail: "Restoring sample…" } : {})}
+          disabled={Boolean(workspaceAction)}
+          last
+          onPress={() => confirmWorkspaceAction("reset")}
+          symbol={symbols.people}
+          title="Restore Sample Data"
+        />
       </ListSection>
 
-      <ListSection title="Privacy & About" footer="No stranger identification, background camera, location tracking, or cloud AI provider is configured.">
+      <ListSection title="Privacy & About" footer="No stranger identification, background camera, advertising, or location tracking.">
         <ListRow accessory="disclosure" last onPress={() => router.push("/privacy")} symbol={symbols.privacy} title="Privacy Notice" />
       </ListSection>
 
       <ListSection title="Danger Zone">
         <ListRow
           destructive
+          disabled={Boolean(workspaceAction)}
           last
           onPress={() => confirmWorkspaceAction("delete")}
           symbol={symbols.trash}
-          subtitle={destructiveBusy ? "Erasing local data…" : "Permanently remove every local record"}
+          subtitle={workspaceAction === "delete" ? "Erasing data…" : "Permanently remove every record"}
           title="Erase All Data"
         />
       </ListSection>
@@ -317,5 +509,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   screen: { paddingBottom: spacing.xxl, gap: spacing.xl },
-  modelManager: { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, padding: spacing.lg },
+  workspaceBlocker: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0, 0, 0, 0.42)", padding: spacing.xl },
+  workspaceBlockerCard: { width: "100%", maxWidth: 340, alignItems: "center", borderRadius: 16, borderCurve: "continuous", backgroundColor: colors.surfaceRaised, padding: spacing.xl, gap: spacing.md },
+  workspaceBlockerCopy: { textAlign: "center" },
 });

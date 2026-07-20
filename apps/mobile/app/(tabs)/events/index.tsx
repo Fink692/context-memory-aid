@@ -1,39 +1,29 @@
 import { useMemo, useState } from "react";
-import { Alert, Modal, Platform, Pressable, SectionList, StyleSheet, View } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { ActionSheetIOS, Alert, Platform, Pressable, SectionList, StyleSheet, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import type { Event } from "@context/shared";
+import { EventEditorSheet, type EventEditorValues } from "@/components/event-editor-sheet";
 import {
   AppSymbol,
   AppText,
-  BarButton,
   Button,
   EmptyState,
   ErrorBanner,
-  FormField,
   IconButton,
-  ListRow,
-  ListSection,
   Pill,
   Screen,
   SuccessBanner,
-  TextField,
   symbols,
 } from "@/components/ui";
 import { colors, radius, spacing } from "@/constants/theme";
-import { displayDate } from "@/lib/date";
+import { displayEventSchedule } from "@/lib/date";
+import { eventHasEnded } from "@/lib/event-lifecycle";
 import { useAppStore } from "@/store/app-store";
 
 type EventSection = {
   title: string;
   data: Event[];
 };
-
-function defaultDate(): string {
-  const date = new Date(Date.now() + 24 * 60 * 60 * 1_000);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-}
 
 function eventId(name: string): string {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
@@ -50,11 +40,8 @@ export default function EventsScreen() {
   const deleteEvent = useAppStore((state) => state.deleteEvent);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string>();
-  const [name, setName] = useState("");
-  const [startsAt, setStartsAt] = useState(defaultDate);
-  const [location, setLocation] = useState("");
-  const [error, setError] = useState<string>();
   const [success, setSuccess] = useState<string>();
+  const [error, setError] = useState<string>();
 
   const sortedEvents = useMemo(
     () => [...events].sort((left, right) => right.startsAt.localeCompare(left.startsAt)),
@@ -64,73 +51,80 @@ export default function EventsScreen() {
   const sections = useMemo<EventSection[]>(() => {
     const active = sortedEvents.find((event) => event.id === currentEventId);
     const others = sortedEvents.filter((event) => event.id !== currentEventId);
+    const upcoming = others
+      .filter((event) => !eventHasEnded(event))
+      .sort((left, right) => left.startsAt.localeCompare(right.startsAt));
+    const past = others
+      .filter((event) => eventHasEnded(event))
+      .sort((left, right) => right.startsAt.localeCompare(left.startsAt));
     return [
-      ...(active ? [{ title: "Active event", data: [active] }] : []),
-      ...(others.length ? [{ title: active ? "Other events" : "Saved events", data: others }] : []),
+      ...(active ? [{ title: eventHasEnded(active) ? "Showing on Today · Ended" : "Showing on Today", data: [active] }] : []),
+      ...(upcoming.length ? [{ title: "Upcoming", data: upcoming }] : []),
+      ...(past.length ? [{ title: "Past", data: past }] : []),
     ];
   }, [currentEventId, sortedEvents]);
-
-  const resetForm = () => {
-    setName("");
-    setStartsAt(defaultDate());
-    setLocation("");
-    setEditingEventId(undefined);
-    setError(undefined);
-  };
+  const activeEvent = events.find((event) => event.id === currentEventId);
+  const activeEventEnded = activeEvent ? eventHasEnded(activeEvent) : false;
 
   const openCreate = () => {
-    resetForm();
+    setEditingEventId(undefined);
     setSuccess(undefined);
+    setError(undefined);
     setEditorVisible(true);
   };
 
   const openEdit = (event: Event) => {
-    const date = new Date(event.startsAt);
-    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
     setEditingEventId(event.id);
-    setName(event.name);
-    setStartsAt(local.toISOString().slice(0, 16));
-    setLocation(event.locationLabel ?? "");
-    setError(undefined);
     setSuccess(undefined);
+    setError(undefined);
     setEditorVisible(true);
   };
 
   const closeEditor = () => {
     setEditorVisible(false);
-    setError(undefined);
   };
 
-  const saveEvent = () => {
-    const cleanName = name.trim();
-    const parsedDate = new Date(startsAt);
-    if (!cleanName) {
-      setError("Enter an event name.");
-      return;
-    }
-    if (Number.isNaN(parsedDate.getTime())) {
-      setError("Choose a valid date and time.");
-      return;
-    }
-
+  const saveEvent = async (values: EventEditorValues) => {
     if (editingEventId) {
-      updateEvent(editingEventId, {
-        name: cleanName,
-        startsAt: parsedDate.toISOString(),
-        locationLabel: location.trim() || undefined,
-      });
-      setSuccess(`${cleanName} was updated.`);
+      await updateEvent(editingEventId, { ...values, locationLabel: values.locationLabel ?? null });
+      setSuccess(`${values.name} was updated.`);
     } else {
-      addEvent({
-        id: eventId(cleanName),
-        name: cleanName,
-        startsAt: parsedDate.toISOString(),
-        ...(location.trim() ? { locationLabel: location.trim() } : {}),
+      await addEvent({
+        id: eventId(values.name),
+        ...values,
         attendeeContactIds: [],
       });
-      setSuccess(`${cleanName} is now active.`);
+      setSuccess(`${values.name} is now showing on Today.`);
     }
     setEditorVisible(false);
+  };
+
+  const setEventActive = async (event: Event, active: boolean): Promise<boolean> => {
+    setError(undefined);
+    try {
+      await setCurrentEventId(active ? event.id : "");
+      setSuccess(active
+        ? `${event.name} is now showing on Today.`
+        : `${event.name} is still saved, but Today is back to your everyday people.`);
+      setEditorVisible(false);
+      return true;
+    } catch {
+      setSuccess(undefined);
+      setError("Context could not update Today. The event is still saved; try again.");
+      return false;
+    }
+  };
+
+  const deleteSavedEvent = async (event: Event) => {
+    setError(undefined);
+    try {
+      await deleteEvent(event.id);
+      setEditorVisible(false);
+      setSuccess("Event deleted. Saved people and memories were kept.");
+    } catch {
+      setSuccess(undefined);
+      setError("Context could not delete this event. Nothing was changed; try again.");
+    }
   };
 
   const confirmDelete = (event: Event) => {
@@ -142,14 +136,39 @@ export default function EventsScreen() {
         {
           text: "Delete Event",
           style: "destructive",
-          onPress: () => {
-            deleteEvent(event.id);
-            setEditorVisible(false);
-            setSuccess("Event deleted. Saved people and memories were kept.");
-          },
+          onPress: () => { void deleteSavedEvent(event); },
         },
       ],
     );
+  };
+
+  const presentEventActions = (event: Event) => {
+    const active = event.id === currentEventId;
+    const activationLabel = active ? "Remove from Today" : "Show on Today";
+    const activate = () => { void setEventActive(event, !active); };
+    if (Platform.OS === "ios") {
+      const options = [activationLabel, "Edit Event", "Delete Event", "Cancel"];
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          cancelButtonIndex: 3,
+          destructiveButtonIndex: 2,
+          options,
+          title: event.name,
+        },
+        (index) => {
+          if (index === 0) activate();
+          else if (index === 1) openEdit(event);
+          else if (index === 2) confirmDelete(event);
+        },
+      );
+      return;
+    }
+    Alert.alert(event.name, undefined, [
+      { text: activationLabel, onPress: activate },
+      { text: "Edit Event", onPress: () => openEdit(event) },
+      { text: "Delete Event", style: "destructive", onPress: () => confirmDelete(event) },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   return (
@@ -176,18 +195,28 @@ export default function EventsScreen() {
           )}
           ListHeaderComponent={(
             <View style={styles.notices}>
-              <SuccessBanner message={success} />
               <ErrorBanner message={error} />
+              <SuccessBanner message={success} />
+              {activeEvent && activeEventEnded ? (
+                <View accessibilityRole="alert" style={styles.endedNotice}>
+                  <View style={styles.endedNoticeCopy}>
+                    <AppText emphasis="semibold" role="headline" tone="warning">This event has ended</AppText>
+                    <AppText role="footnote" tone="secondary">{activeEvent.name} can stay saved without taking over Today.</AppText>
+                  </View>
+                  <Button onPress={() => { void setEventActive(activeEvent, false); }} variant="secondary">Remove from Today</Button>
+                </View>
+              ) : null}
             </View>
           )}
           renderItem={({ item: event, index, section }) => {
             const active = event.id === currentEventId;
+            const ended = eventHasEnded(event);
             const last = index === section.data.length - 1;
             return (
               <View style={[styles.eventRow, index === 0 && styles.eventRowFirst, last && styles.eventRowLast, !last && styles.eventRowSeparated]}>
                 <Pressable
                   accessibilityHint="Opens the attendee checklist"
-                  accessibilityLabel={`${event.name}. ${active ? "Active event. " : ""}${displayDate(event.startsAt)}. ${event.attendeeContactIds.length} ${event.attendeeContactIds.length === 1 ? "person" : "people"}.`}
+                  accessibilityLabel={`${event.name}. ${active ? "Showing on Today. " : ""}${displayEventSchedule(event)}. ${event.attendeeContactIds.length} ${event.attendeeContactIds.length === 1 ? "person" : "people"}.`}
                   accessibilityRole="button"
                   onPress={() => router.push({ pathname: "/event/[id]/attendees", params: { id: event.id } })}
                   style={({ pressed }) => [styles.eventMain, pressed && styles.rowPressed]}
@@ -195,10 +224,11 @@ export default function EventsScreen() {
                   <View style={styles.eventCopy}>
                     <View style={styles.eventTitleRow}>
                       <AppText emphasis="semibold" role="headline" style={styles.eventName}>{event.name}</AppText>
-                      {active ? <Pill tone="safe">Active</Pill> : null}
+                      {active ? <Pill tone="safe">On Today</Pill> : null}
+                      {ended ? <Pill tone="warning">Ended</Pill> : null}
                     </View>
                     <AppText role="subheadline" tone="secondary">
-                      {displayDate(event.startsAt)} · {event.locationLabel ?? "Location not set"}
+                      {displayEventSchedule(event)} · {event.locationLabel ?? "Location not set"}
                     </AppText>
                     <AppText role="footnote" tone="secondary">
                       {event.attendeeContactIds.length} {event.attendeeContactIds.length === 1 ? "person" : "people"}
@@ -207,8 +237,9 @@ export default function EventsScreen() {
                   <AppSymbol name={symbols.chevron} size={16} tone="tertiary" weight="semibold" />
                 </Pressable>
                 <IconButton
-                  accessibilityLabel={`Edit ${event.name}`}
-                  onPress={() => openEdit(event)}
+                  accessibilityHint={active ? "Offers event options" : "Offers Show on Today and event options"}
+                  accessibilityLabel={`More actions for ${event.name}`}
+                  onPress={() => presentEventActions(event)}
                   style={styles.editAction}
                   symbol={symbols.ellipsis}
                 />
@@ -217,7 +248,7 @@ export default function EventsScreen() {
           }}
           renderSectionFooter={() => <View style={styles.sectionGap} />}
           renderSectionHeader={({ section }) => (
-            <AppText emphasis="semibold" role="footnote" style={styles.sectionLabel} tone="secondary">
+            <AppText accessibilityRole="header" emphasis="semibold" role="footnote" style={styles.sectionLabel} tone="secondary">
               {section.title}
             </AppText>
           )}
@@ -228,108 +259,22 @@ export default function EventsScreen() {
         />
       </Screen>
 
-      <Modal
-        allowSwipeDismissal
-        animationType="slide"
-        onDismiss={resetForm}
-        onRequestClose={closeEditor}
-        presentationStyle={Platform.OS === "ios" ? "pageSheet" : "fullScreen"}
+      <EventEditorSheet
+        active={Boolean(editingEvent && editingEvent.id === currentEventId)}
+        onCancel={closeEditor}
+        onSave={saveEvent}
         visible={editorVisible}
-      >
-        <Screen contentContainerStyle={styles.sheet} safeEdges={["top", "right", "bottom", "left"]}>
-          <View style={styles.sheetBar}>
-            <BarButton onPress={closeEditor}>Cancel</BarButton>
-            <AppText accessibilityRole="header" emphasis="semibold" role="headline" style={styles.sheetTitle}>
-              {editingEventId ? "Edit Event" : "New Event"}
-            </AppText>
-            <BarButton disabled={!name.trim()} onPress={saveEvent}>{editingEventId ? "Save" : "Add"}</BarButton>
-          </View>
-
-          <ErrorBanner message={error} />
-
-          <View style={styles.form}>
-            <FormField
-              autoCapitalize="words"
-              autoFocus
-              label="Event name"
-              maxLength={160}
-              onChangeText={setName}
-              placeholder="Applied AI Summit"
-              returnKeyType="next"
-              value={name}
-            />
-
-            <View style={styles.field}>
-              <AppText emphasis="semibold" role="footnote" tone="secondary">Date and time</AppText>
-              {Platform.OS === "ios" ? (
-                <View style={styles.pickerRow}>
-                  <DateTimePicker
-                    accessibilityLabel="Event date and time"
-                    display="compact"
-                    minuteInterval={5}
-                    mode="datetime"
-                    onChange={(_event, value) => {
-                      if (!value) return;
-                      const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
-                      setStartsAt(local.toISOString().slice(0, 16));
-                    }}
-                    value={Number.isNaN(new Date(startsAt).getTime()) ? new Date() : new Date(startsAt)}
-                  />
-                </View>
-              ) : (
-                <TextField
-                  accessibilityLabel="Event date and time"
-                  autoCapitalize="none"
-                  onChangeText={setStartsAt}
-                  placeholder="2026-07-10T18:30"
-                  value={startsAt}
-                />
-              )}
-            </View>
-
-            <FormField
-              autoCapitalize="words"
-              label="Location"
-              maxLength={160}
-              onChangeText={setLocation}
-              placeholder="Convention Hall A"
-              returnKeyType="done"
-              value={location}
-            />
-          </View>
-
-          {editingEvent ? (
-            <ListSection title="Event options">
-              <ListRow
-                accessory="none"
-                last={false}
-                onPress={() => {
-                  const nextEventId = editingEvent.id === currentEventId ? "" : editingEvent.id;
-                  setCurrentEventId(nextEventId);
-                  setSuccess(nextEventId
-                    ? `${editingEvent.name} is now active.`
-                    : `${editingEvent.name} is still saved, but Today is back to your everyday people.`);
-                  setEditorVisible(false);
-                }}
-                subtitle={editingEvent.id === currentEventId
-                  ? "Keep the event saved and return Today to your everyday people"
-                  : "Use this event on Today and in Event Assistant"}
-                symbol={symbols.checkCircle}
-                title={editingEvent.id === currentEventId ? "Stop Showing on Today" : "Make Active on Today"}
-              />
-              <ListRow
-                destructive
-                last
-                onPress={() => confirmDelete(editingEvent)}
-                symbol={symbols.trash}
-                title="Delete Event"
-              />
-            </ListSection>
-          ) : (
-            <AppText role="footnote" tone="secondary">New events become active automatically.</AppText>
-          )}
-        </Screen>
-      </Modal>
+        {...(editingEvent ? {
+          event: editingEvent,
+          onActivationChange: async (active: boolean) => {
+            if (!await setEventActive(editingEvent, active)) throw new Error("Event activation failed.");
+          },
+          onDelete: () => {
+            closeEditor();
+            confirmDelete(editingEvent);
+          },
+        } : {})}
+      />
     </>
   );
 }
@@ -339,6 +284,8 @@ const styles = StyleSheet.create({
   list: { flex: 1, width: "100%" },
   listContent: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
   notices: { gap: spacing.sm, marginBottom: spacing.lg },
+  endedNotice: { borderRadius: radius.lg, borderCurve: "continuous", backgroundColor: colors.warningSoft, padding: spacing.lg, gap: spacing.md },
+  endedNoticeCopy: { gap: spacing.xs },
   sectionLabel: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, textTransform: "uppercase", letterSpacing: 0.2 },
   sectionGap: { height: spacing.xl },
   eventRow: { flexDirection: "row", alignItems: "center", overflow: "hidden", backgroundColor: colors.surface },
@@ -351,10 +298,4 @@ const styles = StyleSheet.create({
   eventName: { flexShrink: 1 },
   editAction: { marginHorizontal: spacing.xs, backgroundColor: "transparent" },
   rowPressed: { backgroundColor: colors.fill },
-  sheet: { paddingTop: spacing.sm, paddingBottom: spacing.xxxl },
-  sheetBar: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  sheetTitle: { flex: 1, textAlign: "center" },
-  form: { gap: spacing.lg },
-  field: { gap: spacing.xs },
-  pickerRow: { minHeight: 52, alignItems: "flex-start", justifyContent: "center", borderRadius: radius.md, borderCurve: "continuous", backgroundColor: colors.surface, paddingHorizontal: spacing.md },
 });

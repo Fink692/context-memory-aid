@@ -35,7 +35,7 @@ describe("device Contacts query", () => {
     nativeContacts.getAllDetails.mockResolvedValue([]);
   });
 
-  it("omits the Expo 57 iOS sort value that the native bridge cannot decode", async () => {
+  it("uses only iOS contact fields that the Expo 57 native bridge can safely read", async () => {
     await loadAccessibleDeviceContacts();
 
     expect(nativeContacts.getAllDetails).toHaveBeenCalledOnce();
@@ -50,10 +50,11 @@ describe("device Contacts query", () => {
         "emails",
         "phones",
         "socialProfiles",
-        "thumbnail",
       ],
       { limit: 250, offset: 0 },
     );
     expect(nativeContacts.getAllDetails.mock.calls[0]?.[1]).not.toHaveProperty("sortOrder");
+    expect(nativeContacts.getAllDetails.mock.calls[0]?.[0]).not.toContain("thumbnail");
+    expect(nativeContacts.getAllDetails.mock.calls[0]?.[0]).not.toContain("image");
   });
 });

@@ -1,14 +1,17 @@
-import { useEffect, useState, type PropsWithChildren, type ReactNode } from "react";
+import { useEffect, useState, type PropsWithChildren, type ReactNode, type Ref } from "react";
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type PressableProps,
   type ScrollViewProps,
   type StyleProp,
@@ -19,6 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import { colors, controlSize, radius, shadow, spacing, typography } from "@/constants/theme";
+import { explicitlyScaledTextStyle, shouldStackSharedRow } from "@/lib/accessibility-layout";
 
 const brandIcon = require("../assets/icon.png") as number;
 
@@ -27,6 +31,10 @@ export const symbols = {
   people: { ios: "person.2.fill", android: "group", web: "group" },
   person: { ios: "person.fill", android: "person", web: "person" },
   events: { ios: "calendar", android: "calendar_month", web: "calendar_month" },
+  connections: { ios: "point.3.connected.trianglepath.dotted", android: "hub", web: "hub" },
+  project: { ios: "folder.fill", android: "folder", web: "folder" },
+  idea: { ios: "lightbulb.fill", android: "lightbulb", web: "lightbulb" },
+  organization: { ios: "building.2.fill", android: "domain", web: "domain" },
   settings: { ios: "gearshape.fill", android: "settings", web: "settings" },
   plus: { ios: "plus", android: "add", web: "add" },
   microphone: { ios: "mic.fill", android: "mic", web: "mic" },
@@ -48,6 +56,8 @@ export const symbols = {
   check: { ios: "checkmark", android: "check", web: "check" },
   checkCircle: { ios: "checkmark.circle.fill", android: "check_circle", web: "check_circle" },
   chevron: { ios: "chevron.right", android: "chevron_right", web: "chevron_right" },
+  back: { ios: "chevron.left", android: "arrow_back", web: "arrow_back" },
+  forward: { ios: "chevron.right", android: "arrow_forward", web: "arrow_forward" },
   ellipsis: { ios: "ellipsis", android: "more_horiz", web: "more_horiz" },
   trash: { ios: "trash.fill", android: "delete", web: "delete" },
   share: { ios: "square.and.arrow.up", android: "share", web: "share" },
@@ -63,11 +73,17 @@ type TextEmphasis = "regular" | "medium" | "semibold" | "bold";
 export function Screen({
   children,
   scroll = true,
+  scrollRef,
   safeEdges = ["right", "bottom", "left"],
   contentContainerStyle,
   ...props
 }: PropsWithChildren<
-  ScrollViewProps & { scroll?: boolean; safeEdges?: Edge[]; contentContainerStyle?: StyleProp<ViewStyle> }
+  ScrollViewProps & {
+    scroll?: boolean;
+    scrollRef?: Ref<ScrollView>;
+    safeEdges?: Edge[];
+    contentContainerStyle?: StyleProp<ViewStyle>;
+  }
 >) {
   if (!scroll) {
     return (
@@ -83,6 +99,7 @@ export function Screen({
         automaticallyAdjustKeyboardInsets
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"
+        ref={scrollRef}
         {...props}
         contentContainerStyle={[styles.content, contentContainerStyle]}
         keyboardShouldPersistTaps="handled"
@@ -99,6 +116,8 @@ export function AppText({
   role = "body",
   tone = "primary",
   emphasis = "regular",
+  dynamicTypeRamp: _dynamicTypeRamp,
+  maxFontSizeMultiplier,
   style,
   ...props
 }: PropsWithChildren<Omit<TextProps, "role"> & {
@@ -106,8 +125,20 @@ export function AppText({
   tone?: TextTone;
   emphasis?: TextEmphasis;
 }>) {
+  const { fontScale } = useWindowDimensions();
+  const resolvedStyle = StyleSheet.flatten([
+    typography[role],
+    textToneStyles[tone],
+    textEmphasisStyles[emphasis],
+    style,
+  ]);
+
   return (
-    <Text {...props} style={[typography[role], textToneStyles[tone], textEmphasisStyles[emphasis], style]}>
+    <Text
+      {...props}
+      allowFontScaling={false}
+      style={[resolvedStyle, explicitlyScaledTextStyle(resolvedStyle, fontScale, role, maxFontSizeMultiplier)]}
+    >
       {children}
     </Text>
   );
@@ -136,7 +167,7 @@ export function AppSymbol({
       name={name}
       size={size}
       style={style}
-      tintColor={textToneStyles[tone].color ?? colors.primary}
+      tintColor={tone === "tint" ? colors.primary : textToneStyles[tone].color ?? colors.primary}
       {...(weight === undefined ? {} : { weight })}
       {...(type === undefined ? {} : { type })}
       {...(animationSpec === undefined ? {} : { animationSpec })}
@@ -156,12 +187,16 @@ export function Body({ children, muted = false }: PropsWithChildren<{ muted?: bo
   return <AppText tone={muted ? "secondary" : "primary"}>{children}</AppText>;
 }
 
-export function TextField({ style, ...props }: TextInputProps) {
+export function TextField({ maxFontSizeMultiplier, style, ...props }: TextInputProps) {
+  const { fontScale } = useWindowDimensions();
+  const resolvedStyle = StyleSheet.flatten([styles.textField, style]);
+
   return (
     <TextInput
-      placeholderTextColor={colors.inkTertiary}
+      placeholderTextColor={colors.fieldPlaceholder}
       {...props}
-      style={[styles.textField, style]}
+      allowFontScaling={false}
+      style={[resolvedStyle, explicitlyScaledTextStyle(resolvedStyle, fontScale, "body", maxFontSizeMultiplier)]}
     />
   );
 }
@@ -176,15 +211,26 @@ export function FormField({
   trailing?: ReactNode;
   containerStyle?: StyleProp<ViewStyle>;
 }) {
+  const { fontScale } = useWindowDimensions();
+  const resolvedInputStyle = StyleSheet.flatten([
+    styles.formInput,
+    props.multiline && styles.formInputMultiline,
+    props.style,
+  ]);
+
   return (
     <View style={[styles.formField, containerStyle]}>
       <AppText emphasis="semibold" role="footnote" tone="secondary">{label}</AppText>
       <View style={styles.formInputRow}>
         <TextInput
-          accessibilityLabel={props.accessibilityLabel ?? label}
-          placeholderTextColor={colors.inkTertiary}
           {...props}
-          style={[styles.formInput, props.multiline && styles.formInputMultiline, props.style]}
+          accessibilityLabel={props.accessibilityLabel ?? label}
+          allowFontScaling={false}
+          placeholderTextColor={colors.fieldPlaceholder}
+          style={[
+            resolvedInputStyle,
+            explicitlyScaledTextStyle(resolvedInputStyle, fontScale, "body", props.maxFontSizeMultiplier),
+          ]}
         />
         {trailing ? <View style={styles.formTrailing}>{trailing}</View> : null}
       </View>
@@ -261,7 +307,14 @@ export function Button({
     >
       <View style={styles.buttonContent}>
         {symbol ? <AppSymbol name={symbol} size={17} tone={foregroundTone} weight="semibold" /> : null}
-        <AppText emphasis="semibold" role="headline" style={loading && styles.buttonTextLoading} tone={foregroundTone}>{children}</AppText>
+        <AppText
+          emphasis="semibold"
+          role="headline"
+          style={[styles.buttonLabel, loading && styles.buttonTextLoading]}
+          tone={foregroundTone}
+        >
+          {children}
+        </AppText>
         {loading ? <ActivityIndicator color={textToneStyles[foregroundTone].color} style={styles.buttonSpinner} /> : null}
       </View>
     </Pressable>
@@ -274,6 +327,7 @@ export function IconButton({
   tone = "tint",
   loading = false,
   disabled,
+  onPress,
   style,
   ...props
 }: Omit<PressableProps, "style" | "children"> & {
@@ -290,6 +344,12 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityState={{ busy: loading, disabled: Boolean(disabled || loading) }}
       disabled={disabled || loading}
+      onPress={onPress ? (event) => {
+        // Icon buttons often sit inside a tappable ListRow. Keep the accessory
+        // action from also opening the parent row.
+        event.stopPropagation();
+        onPress(event);
+      } : undefined}
       style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed, (disabled || loading) && styles.buttonDisabled, style]}
     >
       {loading ? <ActivityIndicator color={textToneStyles[tone].color} /> : <AppSymbol name={symbol} size={20} tone={tone} weight="semibold" />}
@@ -318,7 +378,15 @@ export function BarButton({
       disabled={disabled || loading}
       style={({ pressed }) => [styles.barButton, pressed && styles.buttonPressed, (disabled || loading) && styles.buttonDisabled, style]}
     >
-      <AppText emphasis="semibold" role="body" style={loading && styles.buttonTextLoading} tone={destructive ? "destructive" : "tint"}>{children}</AppText>
+      <AppText
+        emphasis="semibold"
+        maxFontSizeMultiplier={1.3}
+        role="body"
+        style={loading && styles.buttonTextLoading}
+        tone={destructive ? "destructive" : "tint"}
+      >
+        {children}
+      </AppText>
       {loading ? <ActivityIndicator color={destructive ? colors.danger : colors.primary} style={styles.buttonSpinner} /> : null}
     </Pressable>
   );
@@ -381,11 +449,15 @@ export function Pill({ children, tone = "neutral" }: PropsWithChildren<{ tone?: 
 }
 
 export function DetailRow({ label, value }: { label: string; value?: ReactNode }) {
+  const { fontScale, width } = useWindowDimensions();
+  const stacked = shouldStackSharedRow({ fontScale, width });
   if (!value) return null;
   return (
-    <View style={styles.detailRow}>
+    <View style={[styles.detailRow, stacked && styles.detailRowStacked]}>
       <AppText emphasis="semibold" role="footnote" tone="secondary">{label}</AppText>
-      {typeof value === "string" ? <AppText role="callout" style={styles.detailValue}>{value}</AppText> : value}
+      {typeof value === "string" ? (
+        <AppText role="callout" style={[styles.detailValue, stacked && styles.detailValueStacked]}>{value}</AppText>
+      ) : value}
     </View>
   );
 }
@@ -404,7 +476,7 @@ export function ListSection({
 }>) {
   return (
     <View style={[styles.listSection, style]}>
-      {title ? <AppText emphasis="semibold" role="footnote" style={styles.listSectionTitle} tone="secondary">{title}</AppText> : null}
+      {title ? <AppText accessibilityRole="header" emphasis="semibold" role="footnote" style={styles.listSectionTitle} tone="secondary">{title}</AppText> : null}
       <View style={[styles.listGroup, groupStyle]}>{children}</View>
       {footer ? <AppText role="footnote" style={styles.listSectionFooter} tone="secondary">{footer}</AppText> : null}
     </View>
@@ -419,10 +491,14 @@ export function ListRow({
   symbol,
   accessory = "none",
   accessoryNode,
+  trailingAction,
   destructive = false,
   last = false,
   onPress,
   accessibilityLabel,
+  accessibilityHint,
+  disabled = false,
+  selected,
 }: {
   title: string;
   subtitle?: string;
@@ -431,42 +507,88 @@ export function ListRow({
   symbol?: AppSymbolName;
   accessory?: "none" | "disclosure" | "checkmark";
   accessoryNode?: ReactNode;
+  trailingAction?: ReactNode;
   destructive?: boolean;
   last?: boolean;
   onPress?: () => void;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
+  disabled?: boolean;
+  selected?: boolean;
 }) {
-  const content = (
+  const { fontScale, width } = useWindowDimensions();
+  const stacked = shouldStackSharedRow({ fontScale, width });
+  const leadingNode = leading ?? (symbol ? (
+    <View style={styles.rowSymbol}>
+      <AppSymbol name={symbol} size={19} tone={destructive ? "destructive" : "tint"} weight="semibold" />
+    </View>
+  ) : null);
+  const siblingAction = trailingAction ?? (onPress ? accessoryNode : undefined);
+  const inlineAccessoryNode = onPress ? undefined : accessoryNode;
+  const accessoryContent = (
     <>
-      {leading ?? (symbol ? <View style={styles.rowSymbol}><AppSymbol name={symbol} size={19} tone={destructive ? "destructive" : "tint"} weight="semibold" /></View> : null)}
-      <View style={styles.rowCopy}>
-        <AppText emphasis="regular" role="body" tone={destructive ? "destructive" : "primary"}>{title}</AppText>
-        {subtitle ? <AppText role="subheadline" tone="secondary">{subtitle}</AppText> : null}
-      </View>
-      {detail ? <AppText role="subheadline" style={styles.rowDetail} tone="secondary">{detail}</AppText> : null}
-      {accessoryNode}
+      {inlineAccessoryNode}
       {accessory === "disclosure" ? <AppSymbol name={symbols.chevron} size={16} tone="tertiary" weight="semibold" /> : null}
       {accessory === "checkmark" ? <AppSymbol name={symbols.check} size={18} tone="tint" weight="semibold" /> : null}
     </>
   );
+  const hasAccessory = Boolean(inlineAccessoryNode || accessory !== "none");
+  const content = (
+    <>
+      {leadingNode ? <View style={[styles.rowLeading, stacked && styles.rowLeadingStacked]}>{leadingNode}</View> : null}
+      <View style={styles.rowBody}>
+        <View style={styles.rowPrimary}>
+          <View style={styles.rowCopy}>
+            <AppText emphasis="regular" role="body" tone={destructive ? "destructive" : "primary"}>{title}</AppText>
+            {subtitle ? <AppText role="subheadline" tone="secondary">{subtitle}</AppText> : null}
+          </View>
+          {!stacked && detail ? <AppText role="subheadline" style={styles.rowDetail} tone="secondary">{detail}</AppText> : null}
+          {!stacked && hasAccessory ? <View style={styles.rowAccessoryInline}>{accessoryContent}</View> : null}
+        </View>
+        {stacked && (detail || hasAccessory) ? (
+          <View style={styles.rowSecondary}>
+            {detail ? <AppText role="subheadline" style={styles.rowDetailStacked} tone="secondary">{detail}</AppText> : null}
+            {hasAccessory ? <View style={styles.rowAccessoryStacked}>{accessoryContent}</View> : null}
+          </View>
+        ) : null}
+      </View>
+    </>
+  );
   const rowStyle = [styles.listRow, !last && styles.listRowSeparated];
   if (!onPress) return <View style={rowStyle}>{content}</View>;
-  return (
+  const mainPressable = (
     <Pressable
+      accessibilityHint={accessibilityHint}
       accessibilityLabel={accessibilityLabel ?? [title, subtitle, detail].filter(Boolean).join(". ")}
       accessibilityRole="button"
+      accessibilityState={{ disabled, selected }}
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [rowStyle, pressed && styles.rowPressed]}
+      style={({ pressed }) => [siblingAction ? styles.listRowMain : rowStyle, pressed && styles.rowPressed, disabled && styles.buttonDisabled]}
     >
       {content}
     </Pressable>
   );
+  if (siblingAction) {
+    return (
+      <View style={[styles.listRowContainer, !last && styles.listRowSeparated]}>
+        {mainPressable}
+        <View style={styles.listRowTrailing}>{siblingAction}</View>
+      </View>
+    );
+  }
+  return (
+    mainPressable
+  );
 }
 
 export function ErrorBanner({ message }: { message: string | undefined }) {
+  useEffect(() => {
+    if (message && Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(message);
+  }, [message]);
   if (!message) return null;
   return (
-    <View accessibilityRole="alert" style={[styles.notice, styles.errorBanner]}>
+    <View accessible accessibilityLabel={message} accessibilityLiveRegion="assertive" accessibilityRole="alert" style={[styles.notice, styles.errorBanner]}>
       <AppSymbol name={symbols.warning} size={18} tone="destructive" />
       <AppText emphasis="medium" role="subheadline" style={styles.noticeCopy} tone="destructive">{message}</AppText>
     </View>
@@ -474,9 +596,12 @@ export function ErrorBanner({ message }: { message: string | undefined }) {
 }
 
 export function SuccessBanner({ message }: { message: string | undefined }) {
+  useEffect(() => {
+    if (message && Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(message);
+  }, [message]);
   if (!message) return null;
   return (
-    <View accessibilityRole="alert" style={[styles.notice, styles.successBanner]}>
+    <View accessible accessibilityLabel={message} accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.notice, styles.successBanner]}>
       <AppSymbol name={symbols.checkCircle} size={18} tone="success" />
       <AppText emphasis="medium" role="subheadline" style={styles.noticeCopy} tone="success">{message}</AppText>
     </View>
@@ -532,7 +657,7 @@ const textToneStyles = StyleSheet.create<Record<TextTone, TextStyle>>({
   primary: { color: colors.ink },
   secondary: { color: colors.inkMuted },
   tertiary: { color: colors.inkTertiary },
-  tint: { color: colors.primary },
+  tint: { color: colors.primaryDark },
   success: { color: colors.success },
   warning: { color: colors.warning },
   destructive: { color: colors.danger },
@@ -547,7 +672,7 @@ const textEmphasisStyles = StyleSheet.create<Record<TextEmphasis, TextStyle>>({
 });
 
 const buttonStyles = StyleSheet.create({
-  primary: { backgroundColor: colors.primary },
+  primary: { backgroundColor: colors.primaryFill },
   secondary: { backgroundColor: colors.primarySoft },
   quiet: { backgroundColor: "transparent" },
   danger: { backgroundColor: colors.dangerSoft },
@@ -597,6 +722,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   button: {
+    minWidth: 0,
+    maxWidth: "100%",
     minHeight: controlSize.buttonHeight,
     borderRadius: radius.md,
     borderCurve: "continuous",
@@ -605,7 +732,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonContent: { position: "relative", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  buttonContent: { position: "relative", minWidth: 0, maxWidth: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  buttonLabel: { minWidth: 0, flexShrink: 1, textAlign: "center" },
   buttonSpinner: { position: "absolute" },
   buttonPressed: { opacity: 0.68 },
   buttonDisabled: { opacity: 0.42 },
@@ -626,17 +754,30 @@ const styles = StyleSheet.create({
   pillSafe: { backgroundColor: colors.successSoft },
   pillWarning: { backgroundColor: colors.warningSoft },
   detailRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.lg, paddingVertical: spacing.sm },
+  detailRowStacked: { flexDirection: "column", gap: spacing.xs },
   detailValue: { flex: 1, textAlign: "right" },
+  detailValueStacked: { width: "100%", textAlign: "left" },
   listSection: { width: "100%", gap: spacing.sm },
   listSectionTitle: { marginHorizontal: spacing.lg, textTransform: "uppercase", letterSpacing: 0.2 },
   listSectionFooter: { marginHorizontal: spacing.lg },
   listGroup: { overflow: "hidden", borderRadius: radius.lg, borderCurve: "continuous", backgroundColor: colors.surface },
-  listRow: { minHeight: controlSize.rowHeight, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: 11 },
+  listRow: { minHeight: Math.max(controlSize.minimumTouchTarget, controlSize.rowHeight), flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: 11 },
+  listRowContainer: { minHeight: Math.max(controlSize.minimumTouchTarget, controlSize.rowHeight), flexDirection: "row", alignItems: "center" },
+  listRowMain: { minHeight: Math.max(controlSize.minimumTouchTarget, controlSize.rowHeight), flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingLeft: spacing.lg, paddingVertical: 11 },
+  listRowTrailing: { minWidth: controlSize.minimumTouchTarget, minHeight: controlSize.minimumTouchTarget, alignItems: "center", justifyContent: "center", paddingRight: spacing.xs },
   listRowSeparated: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
   rowPressed: { backgroundColor: colors.fill },
+  rowLeading: { flexShrink: 0, alignItems: "center", justifyContent: "center" },
+  rowLeadingStacked: { alignSelf: "flex-start", paddingTop: spacing.xxs },
   rowSymbol: { width: 32, height: 32, alignItems: "center", justifyContent: "center", borderRadius: 8, backgroundColor: colors.primarySoft },
+  rowBody: { flex: 1, minWidth: 0, gap: spacing.sm },
+  rowPrimary: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   rowCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
   rowDetail: { flexShrink: 1, textAlign: "right" },
+  rowSecondary: { width: "100%", alignItems: "stretch", gap: spacing.xs },
+  rowDetailStacked: { width: "100%", textAlign: "left" },
+  rowAccessoryInline: { flexShrink: 0, flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  rowAccessoryStacked: { minHeight: controlSize.minimumTouchTarget, alignSelf: "flex-end", flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: spacing.xs },
   notice: { flexDirection: "row", alignItems: "flex-start", borderRadius: radius.md, borderCurve: "continuous", padding: spacing.md, gap: spacing.sm },
   noticeCopy: { flex: 1 },
   errorBanner: { backgroundColor: colors.dangerSoft },

@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a privacy-aligned improvement to Context
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What relationship-memory problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed experience
+      description: Describe the user flow and the desired outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy considerations
+      description: Does this affect stored data, permissions, networking, sharing, or user review?
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Primary platform
+      options:
+        - All platforms
+        - iOS
+        - Android
+        - Web
+        - macOS desktop
+    validations:
+      required: true

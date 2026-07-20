@@ -32,7 +32,7 @@ The checked-in reason set mirrors the manifests shipped by React Native 0.86, Ex
 - [ ] The generated project contains the reviewed local PDFKit text-extractor and system profile-photo-picker bridges, with no cloud document/photo SDK or broad photo-library permission.
 - [ ] No personal `DEVELOPMENT_TEAM` is committed as generated source; after a clean prebuild, the tester reselects the intended Team in Xcode before a signed device build.
 - [ ] Generated `Info.plist` has the intended name, bundle ID, semantic version, and build number.
-- [ ] `NSCameraUsageDescription` says camera access is for deliberate QR badge scanning.
+- [ ] `NSCameraUsageDescription` says camera access is for deliberate contact QR scanning while the scanner is open and that video is not saved.
 - [ ] `NSContactsUsageDescription` says Context can copy user-chosen names, companies, roles, and available phone, email, social-profile, and profile-thumbnail details into its private People directory and never modifies Contacts.
 - [ ] `NSFaceIDUsageDescription` says Face ID unlocks the private app workspace.
 - [ ] `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription` say dictation is deliberate, on-device, not saved, and never uploaded.
@@ -58,7 +58,7 @@ The checked-in reason set mirrors the manifests shipped by React Native 0.86, Ex
 
 - [ ] Clean install and first launch route correctly to onboarding.
 - [ ] Upgrade from the previous production version preserves and migrates valid local data.
-- [ ] Airplane-mode launch, People, Events, memories, deterministic fallback assistance, QR creation, and manual lookup work without a companion service.
+- [ ] Airplane-mode launch, People, Events, memories, deterministic fallback assistance, contact QR creation/review, and manual lookup work without a companion service.
 - [ ] Gemma 4 download is opt-in and Wi-Fi-only, discloses its 2.59 GB size and about 4.6 GB free-space requirement, supports cancel/retry, and fails safely when storage or network access is insufficient.
 - [ ] The downloaded `gemma-4-E2B-it.litertlm` file is rejected unless its size is 2,588,147,712 bytes and SHA-256 is `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`.
 - [ ] After download and load, Gemma-created person fields, PDF people-list extraction, memory drafts, and conversation prompts work in airplane mode, remain bounded to the selected input/context, and require review before persistence.
@@ -74,7 +74,10 @@ The checked-in reason set mirrors the manifests shipped by React Native 0.86, Ex
 - [ ] Contacts permission changes never silently delete copied Context records; deleting a copied person clears its private device-source link, and exported JSON contains no device contact identifier.
 - [ ] Adding a person works without an event; one dictation channel can fill editable name/contact/context fields with local Gemma without filling a photo or saving before confirmation.
 - [ ] Profile-photo choose, replace, remove, upgrade persistence, app-lock, backup/export behavior, and missing-file fallback pass without broad photo-library permission.
-- [ ] Only Context QR badges within the active event boundary match; invalid, expired, replayed, and out-of-event credentials fail safely.
+- [ ] Contact sharing includes only the fields selected in review; the QR and shared `.vcf` decode in Apple Contacts, and memories, relationship notes, events, photos, follow-ups, and internal identifiers are absent.
+- [ ] Contact QR scanning handles malformed, oversized, multi-card, Unicode, and unsupported-version payloads; nothing saves before review.
+- [ ] Duplicate receive review covers exact email/phone matches, same-name candidates, conflicting identifiers, update-vs-new choice, field conflicts, persistence failure, and preservation of private Context data.
+- [ ] The iOS share sheet, cancellation, Messages/Files, AirDrop between nearby devices, and temporary-file cleanup pass on physical devices.
 - [ ] CSV import handles Files/iCloud providers, UTF-8 data, duplicates, malformed rows, size limits, and both global and event-scoped destinations.
 - [ ] PDF people-list import handles Files/iCloud providers, selectable text, scanned/image-only files, password protection, page/character/file-size limits, local-Gemma failure, duplicates, global/event destinations, review, cancel, and offline extraction without upload.
 - [ ] JSON export, cancel, share, restore preview, invalid restore, and successful restore pass.
@@ -85,7 +88,7 @@ The checked-in reason set mirrors the manifests shipped by React Native 0.86, Ex
 
 ## 6. Accessibility and layout
 
-- [ ] VoiceOver can complete onboarding, app unlock, Contacts selection/review, person dictation and field review, profile-photo selection, event selection, People search, QR fallback/manual lookup, CSV/PDF import, memory creation, export, and deletion.
+- [ ] VoiceOver can complete onboarding, app unlock, Contacts selection/review, contact sharing and scanning, person dictation and field review, profile-photo selection, event selection, People search, manual lookup, CSV/PDF import, memory creation, export, and deletion.
 - [ ] Focus enters and leaves confirmation modals predictably; accessibility escape cancels safely.
 - [ ] Controls expose accurate labels, roles, values, selected states, disabled states, and errors.
 - [ ] The UI remains usable at every Dynamic Type size, including accessibility sizes.
@@ -115,7 +118,7 @@ The checked-in reason set mirrors the manifests shipped by React Native 0.86, Ex
 - [ ] Current iPhone screenshots are uploaded for every required size.
 - [ ] Current iPad screenshots are uploaded while tablet support remains enabled.
 - [ ] App Review contact information is monitored during review.
-- [ ] Review notes explain the local-only model boundary, optional review-first Contacts import, foreground public-source checks, Face ID app lock, camera use, and how to exercise a sample QR badge.
+- [ ] Review notes explain the local-only model boundary, optional review-first Contacts import, selected-field contact sharing, foreground public-source checks, Face ID app lock, camera use, and how to exercise a sample contact QR.
 - [ ] Reviewers have sample data and instructions that do not require access to private accounts or the developer's PC.
 - [ ] Export-compliance, content-rights, encryption, and regional compliance questions are answered for this exact build.
 - [ ] TestFlight internal testing, external beta review if used, crash review, and tester feedback are complete.

@@ -54,7 +54,7 @@ private enum ContextSpeechFailure: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .busy:
-      return "Another on-device dictation is already active."
+      return "Another dictation is already active."
     case .invalidInput(let message):
       return message
     case .microphoneDenied:
@@ -62,13 +62,13 @@ private enum ContextSpeechFailure: LocalizedError {
     case .speechDenied:
       return "Speech recognition access is off. You can keep typing or enable Context in iOS Settings."
     case .speechRestricted:
-      return "Speech recognition is restricted on this iPhone. You can keep typing instead."
+      return "Speech recognition is restricted. You can keep typing instead."
     case .localeUnavailable:
-      return "On-device dictation is not available for this language on this iPhone. You can keep typing instead."
+      return "Dictation is not available for this language. You can keep typing instead."
     case .assetDownload:
-      return "The iPhone could not prepare its on-device speech model. Check the connection and try again."
+      return "Dictation could not be prepared. Check the connection and try again."
     case .audioSession:
-      return "The iPhone could not start a private microphone session."
+      return "The microphone session could not start."
     case .audioInput:
       return "The microphone audio stream became unavailable. Nothing was saved."
     case .interrupted:
@@ -76,7 +76,7 @@ private enum ContextSpeechFailure: LocalizedError {
     case .cancelled:
       return "Dictation was cancelled."
     case .transcription:
-      return "On-device transcription stopped unexpectedly. You can review the partial text or keep typing."
+      return "Transcription stopped unexpectedly. You can review the partial text or keep typing."
     }
   }
 }

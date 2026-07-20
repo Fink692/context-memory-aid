@@ -46,7 +46,7 @@ interface NativeLocalLLMModule {
 }
 
 function nativeModule(): NativeLocalLLMModule {
-  if (Platform.OS !== "ios") throw new Error("Gemma 4 on-device inference is currently available only in the native iOS build.");
+  if (Platform.OS !== "ios") throw new Error("Gemma 4 Smart Assist is currently available only in the iOS app.");
   const module = NativeModules.ContextLocalLLM as NativeLocalLLMModule | undefined;
   if (!module) throw new Error("This app build does not include the Gemma 4 runtime. Rebuild the native iOS app.");
   return module;

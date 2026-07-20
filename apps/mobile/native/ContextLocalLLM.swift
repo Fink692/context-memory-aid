@@ -165,7 +165,7 @@ final class ContextLocalLLM: RCTEventEmitter, URLSessionDownloadDelegate {
   func deleteModel(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
     workQueue.async {
       guard !self.engineLoading, !self.inferenceBusy else {
-        reject("E_MODEL_BUSY", "Wait for the current local-model operation to finish before deleting the model.", nil)
+        reject("E_MODEL_BUSY", "Wait for the current Smart Assist operation to finish before deleting the model.", nil)
         return
       }
       do {
@@ -195,7 +195,7 @@ final class ContextLocalLLM: RCTEventEmitter, URLSessionDownloadDelegate {
   func loadModel(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
     workQueue.async {
       guard !self.engineLoading, !self.inferenceBusy else {
-        reject("E_MODEL_BUSY", "Wait for the current local-model operation to finish.", nil)
+        reject("E_MODEL_BUSY", "Wait for the current Smart Assist operation to finish.", nil)
         return
       }
       if self.engine != nil {
@@ -208,7 +208,7 @@ final class ContextLocalLLM: RCTEventEmitter, URLSessionDownloadDelegate {
         let error = NSError(
           domain: "ContextLocalLLM",
           code: 21,
-          userInfo: [NSLocalizedDescriptionKey: "Gemma 4 is not downloaded. Open Privacy & data and download the on-device model first."]
+          userInfo: [NSLocalizedDescriptionKey: "Gemma 4 is not downloaded. Open Settings and download the Smart Assist model first."]
         )
         reject("E_MODEL_LOAD", error.localizedDescription, error)
         return
@@ -255,7 +255,7 @@ final class ContextLocalLLM: RCTEventEmitter, URLSessionDownloadDelegate {
   func unloadModel(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
     workQueue.async {
       guard !self.engineLoading, !self.inferenceBusy else {
-        reject("E_MODEL_BUSY", "Wait for the current local generation to finish before unloading the model.", nil)
+        reject("E_MODEL_BUSY", "Wait for the current Smart Assist draft to finish before unloading the model.", nil)
         return
       }
       self.activeConversation = nil
@@ -278,11 +278,11 @@ final class ContextLocalLLM: RCTEventEmitter, URLSessionDownloadDelegate {
   ) {
     workQueue.async {
       guard !self.engineLoading, !self.inferenceBusy else {
-        reject("E_MODEL_BUSY", "The on-device model is already completing another request.", nil)
+        reject("E_MODEL_BUSY", "The Smart Assist model is already completing another request.", nil)
         return
       }
       guard !systemPrompt.isEmpty, systemPrompt.count <= 6_000, !prompt.isEmpty, prompt.count <= 24_000 else {
-        reject("E_MODEL_INPUT", "The local-model request exceeded its safety limit.", nil)
+        reject("E_MODEL_INPUT", "The Smart Assist request exceeded its safety limit.", nil)
         return
       }
       guard self.hasVerifiedModel() else {
@@ -290,7 +290,7 @@ final class ContextLocalLLM: RCTEventEmitter, URLSessionDownloadDelegate {
         let error = NSError(
           domain: "ContextLocalLLM",
           code: 21,
-          userInfo: [NSLocalizedDescriptionKey: "Gemma 4 is not downloaded. Open Privacy & data and download the on-device model first."]
+          userInfo: [NSLocalizedDescriptionKey: "Gemma 4 is not downloaded. Open Settings and download the Smart Assist model first."]
         )
         reject("E_MODEL_INFERENCE", error.localizedDescription, error)
         return

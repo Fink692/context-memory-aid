@@ -67,11 +67,11 @@ interface NativeSpeechToTextModule {
 
 function nativeModule(): NativeSpeechToTextModule {
   if (Platform.OS !== "ios") {
-    throw new Error("On-device dictation is currently available only in the native iOS app.");
+    throw new Error("Dictation is currently available only in the iOS app.");
   }
   const module = NativeModules.ContextSpeechToText as NativeSpeechToTextModule | undefined;
   if (!module) {
-    throw new Error("This app build does not include on-device dictation. Rebuild the native iOS app.");
+    throw new Error("This app build does not include dictation. Rebuild the iOS app.");
   }
   return module;
 }

@@ -30,7 +30,7 @@ private enum PDFTextExtractionFailure: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .invalidURI:
-      return "Context can read only a PDF selected from Files on this iPhone."
+      return "Context can read only a PDF selected from Files."
     case .inaccessibleFile:
       return "Context could not access that PDF. Choose it again from Files."
     case .fileTooLarge:

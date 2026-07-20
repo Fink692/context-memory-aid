@@ -4,24 +4,24 @@
     "slug": "context-memory-aid",
     "version": "0.5.0",
     "icon": "./assets/icon.png",
-    "orientation": "portrait",
+    "orientation": "default",
     "scheme": "context",
     "userInterfaceStyle": "automatic",
     "plugins": [
       "./plugins/with-litert-lm",
       "./plugins/with-context-pdf-import",
+      "./plugins/with-privacy-shield",
       "expo-router",
       [
         "expo-contacts",
         {
-          "contactsPermission": "Allow Context to show the people you choose and copy their name, company, role, and available phone, email, social profile, and profile thumbnail into your private People directory. Context does not modify Contacts."
+          "contactsPermission": "Allow Context to show the people you choose and copy their name, company, role, and available phone, email, and social profile into your private People directory. Context does not modify Contacts."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Context uses the camera only while you scan an event badge. Camera frames are not stored.",
-          "microphonePermission": "Allow Context to use the microphone only while you dictate private relationship details. Audio is processed on this iPhone and is not saved.",
+          "cameraPermission": "Allow Context to scan a contact QR code while the scanner is open. Camera video stays on this iPhone and is not saved.",
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
         }
@@ -61,7 +61,7 @@
       "bundleIdentifier": "com.fink692.contextmemory",
       "buildNumber": "1",
       "infoPlist": {
-        "NSSpeechRecognitionUsageDescription": "Allow Context to convert speech to text on this iPhone. Context requires on-device recognition and never uploads the recording.",
+        "NSSpeechRecognitionUsageDescription": "Allow Context to turn dictation into editable text.",
         "UIViewControllerBasedStatusBarAppearance": false
       },
       "config": {
@@ -94,7 +94,6 @@
     "android": {
       "package": "com.fink692.contextmemory",
       "allowBackup": false,
-      "permissions": ["CAMERA"],
       "blockedPermissions": ["android.permission.WRITE_CONTACTS", "android.permission.RECORD_AUDIO"]
     },
     "web": {

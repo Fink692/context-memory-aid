@@ -115,7 +115,7 @@ export function reduceDictation(state: DictationState, action: DictationAction):
         locale: action.event.locale ?? state.locale,
         elapsedMs: action.event.elapsedMs,
         assetProgress: action.event.assetProgress,
-        error: action.event.phase === "error" ? action.event.message ?? "On-device dictation stopped." : undefined,
+        error: action.event.phase === "error" ? action.event.message ?? "Dictation stopped." : undefined,
         reason: action.event.reason,
       };
     }

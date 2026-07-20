@@ -22,8 +22,11 @@ const DEVICE_CONTACT_FIELDS = [
   ContactField.EMAILS,
   ContactField.PHONES,
   ContactField.SOCIAL_PROFILES,
-  ContactField.THUMBNAIL,
 ] as const;
+
+// expo-contacts 57 checks the thumbnail key on iOS but reads the full image
+// property, which raises a native exception on iOS 27. Keep photos out of the
+// bulk query until the bridge reads CNContactThumbnailImageDataKey correctly.
 
 const PAGE_SIZE = 250;
 const MAX_CONTACTS = 5_000;

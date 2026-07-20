@@ -150,4 +150,39 @@ describe("on-device Update Watch lifecycle", () => {
     await clearDeviceUpdateWatchData();
     expect(await listDeviceWatchSources()).toEqual([]);
   });
+
+  it("cancels and aborts a chunked response that crosses the 2 MB limit", async () => {
+    let sourceCanceled = false;
+    let sourceSignal: AbortSignal | undefined;
+    const chunks = [
+      new Uint8Array(1_048_576),
+      new Uint8Array(1_048_576),
+      new Uint8Array([1]),
+    ];
+
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/robots.txt")) return new Response("", { status: 404 });
+      sourceSignal = init?.signal ?? undefined;
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          const next = chunks.shift();
+          if (next) controller.enqueue(next);
+          else controller.close();
+        },
+        cancel() {
+          sourceCanceled = true;
+        },
+      }, { highWaterMark: 0 });
+      return new Response(stream, {
+        status: 200,
+        headers: { "Content-Type": "application/rss+xml" },
+      });
+    }));
+
+    await addDeviceWatchSource(sourceInput);
+    expect(await checkDeviceWatchSources(sourceInput.contactId, true)).toMatchObject({ failed: 1, discovered: 0 });
+    expect((await listDeviceWatchSources(sourceInput.contactId))[0]?.lastError).toMatch(/2 MB safety limit/);
+    expect(sourceCanceled).toBe(true);
+    expect(sourceSignal?.aborted).toBe(true);
+  });
 });

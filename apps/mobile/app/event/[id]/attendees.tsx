@@ -2,21 +2,26 @@ import { useMemo, useState } from "react";
 import { Platform, Pressable, SectionList, StyleSheet, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import type { Contact } from "@context/shared";
+import { EventEditorSheet, type EventEditorValues } from "@/components/event-editor-sheet";
 import {
   AppSymbol,
   AppText,
+  BarButton,
   Button,
   EmptyState,
+  ErrorBanner,
   IconButton,
   ListRow,
   ListSection,
   Pill,
   Screen,
+  SuccessBanner,
   TextField,
   symbols,
 } from "@/components/ui";
 import { colors, radius, spacing } from "@/constants/theme";
-import { displayDate } from "@/lib/date";
+import { displayEventSchedule } from "@/lib/date";
+import { mutationErrorMessage } from "@/lib/mutation-error";
 import { useAppStore } from "@/store/app-store";
 
 type AttendeeSection = {
@@ -34,9 +39,16 @@ export default function EventAttendeesScreen() {
   const router = useRouter();
   const contacts = useAppStore((state) => state.contacts);
   const event = useAppStore((state) => state.events.find((item) => item.id === eventId));
+  const currentEventId = useAppStore((state) => state.currentEventId);
   const addContactToEvent = useAppStore((state) => state.addContactToEvent);
   const removeContactFromEvent = useAppStore((state) => state.removeContactFromEvent);
+  const updateEvent = useAppStore((state) => state.updateEvent);
+  const setCurrentEventId = useAppStore((state) => state.setCurrentEventId);
   const [query, setQuery] = useState("");
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [success, setSuccess] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [attendanceBusyId, setAttendanceBusyId] = useState<string>();
 
   const attendeeIds = useMemo(() => new Set(event?.attendeeContactIds ?? []), [event?.attendeeContactIds]);
   const sections = useMemo<AttendeeSection[]>(() => {
@@ -55,7 +67,7 @@ export default function EventAttendeesScreen() {
     const attending = visible.filter((contact) => attendeeIds.has(contact.id));
     const available = visible.filter((contact) => !attendeeIds.has(contact.id));
     return [
-      ...(attending.length ? [{ title: `Attending · ${attending.length}`, data: attending }] : []),
+      ...(attending.length ? [{ title: `Included · ${attending.length}`, data: attending }] : []),
       ...(available.length ? [{ title: "Other saved people", data: available }] : []),
     ];
   }, [attendeeIds, contacts, event, query]);
@@ -77,14 +89,66 @@ export default function EventAttendeesScreen() {
     router.push({ pathname: "/import", params: { eventId: event.id } });
   };
 
+  const saveEvent = async (values: EventEditorValues) => {
+    await updateEvent(event.id, { ...values, locationLabel: values.locationLabel ?? null });
+    setSuccess(`${values.name} was updated.`);
+    setError(undefined);
+    setEditorVisible(false);
+  };
+
+  const setEventActive = async (active: boolean): Promise<boolean> => {
+    setError(undefined);
+    try {
+      await setCurrentEventId(active ? event.id : "");
+      setSuccess(active
+        ? `${event.name} is now showing on Today.`
+        : `${event.name} is still saved, but no longer showing on Today.`);
+      setEditorVisible(false);
+      return true;
+    } catch {
+      setSuccess(undefined);
+      setError("Context could not update Today. This event is still saved; try again.");
+      return false;
+    }
+  };
+
+  const changeAttendance = async (contactId: string, attending: boolean) => {
+    setAttendanceBusyId(contactId);
+    setError(undefined);
+    try {
+      if (attending) await removeContactFromEvent(contactId, event.id);
+      else await addContactToEvent(contactId, event.id);
+    } catch (caught) {
+      setError(mutationErrorMessage(
+        caught,
+        "Context could not update this attendee. Nothing was changed; try again.",
+      ));
+    } finally {
+      setAttendanceBusyId(undefined);
+    }
+  };
+
+  const active = event.id === currentEventId;
+
   const listHeader = (
     <View style={styles.listHeader}>
+      <ErrorBanner message={error} />
+      <SuccessBanner message={success} />
       <View style={styles.summary}>
         <AppText role="callout" tone="secondary">
-          {displayDate(event.startsAt)} · {event.locationLabel ?? "Location not set"}
+          {displayEventSchedule(event)} · {event.locationLabel ?? "Location not set"}
         </AppText>
-        <Pill tone="safe">{event.attendeeContactIds.length} attending</Pill>
+        <View style={styles.summaryBadges}>
+          {active ? <Pill tone="safe">On Today</Pill> : null}
+          <Pill>{event.attendeeContactIds.length} {event.attendeeContactIds.length === 1 ? "person" : "people"}</Pill>
+        </View>
       </View>
+
+      {!active ? (
+        <Button onPress={() => { void setEventActive(true); }} symbol={symbols.checkCircle} variant="secondary">
+          Show on Today
+        </Button>
+      ) : null}
 
       <ListSection footer="Tap a name to include or remove it. Removing someone from this event keeps their profile and memories.">
         <ListRow
@@ -114,6 +178,7 @@ export default function EventAttendeesScreen() {
       <Stack.Screen
         options={{
           title: event.name,
+          headerRight: () => <BarButton onPress={() => setEditorVisible(true)}>Edit</BarButton>,
           ...(Platform.OS === "ios" && contacts.length
             ? {
                 headerSearchBarOptions: {
@@ -157,13 +222,11 @@ export default function EventAttendeesScreen() {
               <View style={[styles.personRow, index === 0 && styles.personRowFirst, last && styles.personRowLast, !last && styles.personRowSeparated]}>
                 <Pressable
                   accessibilityHint="Double tap to change attendance"
-                  accessibilityLabel={`${contact.displayName}. ${metadata}. ${attending ? "Attending" : "Not attending"}.`}
+                  accessibilityLabel={`${contact.displayName}. ${metadata}. ${attending ? "Included" : "Not included"}.`}
                   accessibilityRole="checkbox"
-                  accessibilityState={{ checked: attending }}
-                  onPress={() => {
-                    if (attending) removeContactFromEvent(contact.id, event.id);
-                    else addContactToEvent(contact.id, event.id);
-                  }}
+                  accessibilityState={{ busy: attendanceBusyId === contact.id, checked: attending, disabled: Boolean(attendanceBusyId) }}
+                  disabled={Boolean(attendanceBusyId)}
+                  onPress={() => { void changeAttendance(contact.id, attending); }}
                   style={({ pressed }) => [styles.checklistAction, pressed && styles.rowPressed]}
                 >
                   <View style={[styles.checkbox, attending && styles.checkboxSelected]}>
@@ -185,7 +248,7 @@ export default function EventAttendeesScreen() {
           }}
           renderSectionFooter={() => <View style={styles.sectionGap} />}
           renderSectionHeader={({ section }) => (
-            <AppText emphasis="semibold" role="footnote" style={styles.sectionLabel} tone="secondary">
+            <AppText accessibilityRole="header" emphasis="semibold" role="footnote" style={styles.sectionLabel} tone="secondary">
               {section.title}
             </AppText>
           )}
@@ -195,6 +258,16 @@ export default function EventAttendeesScreen() {
           style={styles.list}
         />
       </Screen>
+      <EventEditorSheet
+        active={active}
+        event={event}
+        onActivationChange={async (nextActive) => {
+          if (!await setEventActive(nextActive)) throw new Error("Event activation failed.");
+        }}
+        onCancel={() => setEditorVisible(false)}
+        onSave={saveEvent}
+        visible={editorVisible}
+      />
     </>
   );
 }
@@ -205,6 +278,7 @@ const styles = StyleSheet.create({
   listContent: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
   listHeader: { gap: spacing.lg, marginBottom: spacing.xl },
   summary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm },
+  summaryBadges: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
   sectionLabel: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, textTransform: "uppercase", letterSpacing: 0.2 },
   sectionGap: { height: spacing.xl },
   personRow: { minHeight: 68, flexDirection: "row", alignItems: "center", overflow: "hidden", backgroundColor: colors.surface },

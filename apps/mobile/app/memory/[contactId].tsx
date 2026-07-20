@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { Linking, Platform, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Linking, Platform, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { createLocalMemoryDraft, type Memory, type MemoryDraft } from "@context/shared";
 import {
-  AppSymbol,
   AppText,
   BarButton,
   Button,
@@ -17,10 +17,21 @@ import {
   symbols,
 } from "@/components/ui";
 import { colors, radius, spacing, typography } from "@/constants/theme";
+import { dueAtForChoice, inferredQuickDueChoice, type QuickDueChoice } from "@/lib/action-schedule";
 import { activeEventForContact } from "@/lib/contact-event-context";
+import { displayDate } from "@/lib/date";
 import { createModelMemoryDraft } from "@/lib/local-model";
+import { mutationErrorMessage } from "@/lib/mutation-error";
+import { explicitlyScaledTextStyle, shouldStackSharedRow } from "@/lib/accessibility-layout";
+import {
+  editableFollowUpsForMemory,
+  isoWithSelectedLocalDate,
+  parseMemoryTags,
+  suggestedTimelineSummary,
+  type EditableFollowUp,
+} from "@/lib/memory-editor";
 import { useOnDeviceDictation, type OnDeviceDictationController } from "@/lib/use-on-device-dictation";
-import { useAppStore } from "@/store/app-store";
+import { useAppStore, type ActionDraft } from "@/store/app-store";
 
 function singleParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -38,30 +49,68 @@ function uniqueStrings(values: string[]): string[] {
 }
 
 export default function AddMemoryScreen() {
-  const params = useLocalSearchParams<{ contactId?: string | string[] }>();
+  const params = useLocalSearchParams<{ contactId?: string | string[]; memoryId?: string | string[] }>();
   const contactId = singleParam(params.contactId);
+  const memoryId = singleParam(params.memoryId);
   const router = useRouter();
   const contact = useAppStore((state) => state.contacts.find((item) => item.id === contactId));
+  const actions = useAppStore((state) => state.actions);
   const event = useAppStore((state) => activeEventForContact(state.events, state.currentEventId, contactId));
   const localToolsEnabled = useAppStore((state) => state.localToolsEnabled);
   const addMemory = useAppStore((state) => state.addMemory);
+  const updateMemory = useAppStore((state) => state.updateMemory);
+  const existingMemory = contact?.timeline.find((memory) => memory.id === memoryId);
+  const linkedActions = useMemo(
+    () => memoryId ? actions.filter((action) => action.memoryId === memoryId) : [],
+    [actions, memoryId],
+  );
   const [note, setNote] = useState("");
-  const [draft, setDraft] = useState<MemoryDraft>();
   const [summary, setSummary] = useState("");
+  const [summaryLocked, setSummaryLocked] = useState(false);
+  const [tagsInput, setTagsInput] = useState("");
+  const [followUps, setFollowUps] = useState<EditableFollowUp[]>([]);
+  const [newFollowUp, setNewFollowUp] = useState("");
+  const [occurredAt, setOccurredAt] = useState(() => new Date().toISOString());
+  const [extractedFacts, setExtractedFacts] = useState<string[]>([]);
   const [error, setError] = useState<string>();
+  const [saveBusy, setSaveBusy] = useState(false);
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftEngine, setDraftEngine] = useState<"model" | "device" | "rules">();
+  const [draftStale, setDraftStale] = useState(false);
   const draftRequest = useRef(0);
+  const initializedKey = useRef<string | undefined>(undefined);
   const dictation = useOnDeviceDictation();
+  const { fontScale, width } = useWindowDimensions();
+  const stackDueChoices = shouldStackSharedRow({ fontScale, width });
 
   useEffect(() => {
+    if (!contact || (memoryId && !existingMemory)) return;
+    const key = `${contact.id}:${memoryId ?? "new"}`;
+    if (initializedKey.current === key) return;
+    initializedKey.current = key;
     draftRequest.current += 1;
     setDraftBusy(false);
-    setDraft(undefined);
-    setSummary("");
     setDraftEngine(undefined);
+    setDraftStale(false);
+    setExtractedFacts([]);
     setError(undefined);
-  }, [contact, event, localToolsEnabled]);
+    setNewFollowUp("");
+    if (existingMemory) {
+      setNote(existingMemory.details ?? existingMemory.summary);
+      setSummary(existingMemory.summary);
+      setSummaryLocked(true);
+      setTagsInput(existingMemory.tags.join(", "));
+      setFollowUps(editableFollowUpsForMemory(existingMemory, linkedActions));
+      setOccurredAt(existingMemory.occurredAt);
+      return;
+    }
+    setNote("");
+    setSummary("");
+    setSummaryLocked(false);
+    setTagsInput("");
+    setFollowUps([]);
+    setOccurredAt(new Date().toISOString());
+  }, [contact?.id, existingMemory?.id, memoryId]);
 
   useEffect(() => () => { draftRequest.current += 1; }, []);
 
@@ -76,14 +125,14 @@ export default function AddMemoryScreen() {
       <>
         <Stack.Screen
           options={{
-            title: "New Memory",
+            title: memoryId ? "Edit Memory" : "New Memory",
             headerLeft: () => <BarButton onPress={() => { void close(); }}>Close</BarButton>,
           }}
         />
         <Screen>
           <EmptyState
             action={<Button onPress={() => router.replace("/people")}>Open People</Button>}
-            body="This person may have been removed from this device."
+            body="This person may no longer be available."
             symbol={symbols.person}
             title="Person unavailable"
           />
@@ -92,31 +141,106 @@ export default function AddMemoryScreen() {
     );
   }
 
-  const dictationContributed = dictation.state.targetId === "memory-note" && Boolean(dictation.state.finalizedText.trim());
-  const extractedFacts = draft ? uniqueStrings(draft.extractedFacts) : [];
-  const suggestedFollowUps = draft ? uniqueStrings(draft.suggestedFollowUps) : [];
-  const cleanNote = note.trim();
+  if (memoryId && !existingMemory) {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: "Edit Memory",
+            headerLeft: () => <BarButton onPress={() => { void close(); }}>Close</BarButton>,
+          }}
+        />
+        <Screen>
+          <EmptyState
+            action={<Button onPress={() => router.replace({ pathname: "/contact/[id]", params: { id: contact.id } })}>Open Person</Button>}
+            body="This memory may have been removed from the timeline."
+            symbol={symbols.note}
+            title="Memory unavailable"
+          />
+        </Screen>
+      </>
+    );
+  }
 
-  const saveMemory = (
-    memorySummary: string,
-    tags: string[] = [],
-    nextSteps: string[] = [],
-    source: Memory["source"] = "text",
-  ) => {
-    const now = new Date().toISOString();
-    const memory: Memory = {
-      id: `memory-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      contactId: contact.id,
-      summary: memorySummary,
-      tags,
-      nextSteps,
-      source,
-      occurredAt: now,
-      createdAt: now,
-    };
-    addMemory(memory);
-    if (router.canGoBack()) router.back();
-    else router.replace({ pathname: "/contact/[id]", params: { id: contact.id } });
+  const dictationContributed = dictation.state.targetId === "memory-note" && Boolean(dictation.state.finalizedText.trim());
+  const cleanNote = note.trim();
+  const cleanSummary = summary.trim();
+  const editing = Boolean(existingMemory);
+
+  const saveCurrent = async () => {
+    if (!cleanNote) {
+      setError("Add what happened before saving.");
+      return;
+    }
+    if (!cleanSummary) {
+      setError("Add a short timeline summary before saving.");
+      return;
+    }
+    const actionDrafts: ActionDraft[] = followUps.slice(0, 5).flatMap((followUp) => {
+      const title = followUp.title.trim();
+      return title ? [{
+        title,
+        ...(followUp.dueAt ? { dueAt: followUp.dueAt } : {}),
+        ...(followUp.eventId ? { eventId: followUp.eventId } : {}),
+      }] : [];
+    });
+    const tags = parseMemoryTags(tagsInput);
+    setSaveBusy(true);
+    setError(undefined);
+    try {
+      if (existingMemory) {
+        await updateMemory(contact.id, existingMemory.id, {
+          summary: cleanSummary,
+          details: cleanNote,
+          tags,
+          nextSteps: actionDrafts.map((action) => action.title),
+          occurredAt,
+        }, actionDrafts);
+      } else {
+        const now = new Date().toISOString();
+        const memory: Memory = {
+          id: `memory-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          contactId: contact.id,
+          summary: cleanSummary,
+          details: cleanNote,
+          tags,
+          nextSteps: actionDrafts.map((action) => action.title),
+          source: dictationContributed ? "voice" : "text",
+          occurredAt,
+          createdAt: now,
+        };
+        await addMemory(memory, actionDrafts);
+      }
+      if (router.canGoBack()) router.back();
+      else router.replace({ pathname: "/contact/[id]", params: { id: contact.id } });
+    } catch (caught) {
+      setError(mutationErrorMessage(
+        caught,
+        "Context could not save this memory. Your note and reviewed follow-ups are still here; try again.",
+      ));
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
+  const applyDraft = (nextDraft: MemoryDraft, engine: "model" | "device" | "rules") => {
+    const nextFollowUps = uniqueStrings(nextDraft.suggestedFollowUps).slice(0, 5).map((title, index) => {
+      const current = followUps.find((followUp) => followUp.title.trim().toLocaleLowerCase() === title.toLocaleLowerCase());
+      const actionEventId = current?.eventId ?? event?.id;
+      return {
+        id: current?.id ?? `suggested-${Date.now().toString(36)}-${index}`,
+        title,
+        ...(current?.dueAt ? { dueAt: current.dueAt } : {}),
+        ...(actionEventId ? { eventId: actionEventId } : {}),
+      };
+    });
+    setSummary(nextDraft.summary);
+    setSummaryLocked(true);
+    setTagsInput(uniqueStrings(nextDraft.suggestedTags).join(", "));
+    setFollowUps(nextFollowUps);
+    setExtractedFacts(uniqueStrings(nextDraft.extractedFacts));
+    setDraftEngine(engine);
+    setDraftStale(false);
   };
 
   const createDraft = async () => {
@@ -125,7 +249,7 @@ export default function AddMemoryScreen() {
       return;
     }
     if (!localToolsEnabled) {
-      setError("On-device assistance is off. You can still save a note as written.");
+      setError("Smart Assist is off. You can still save the note as written.");
       return;
     }
     if (!cleanNote) {
@@ -138,44 +262,15 @@ export default function AddMemoryScreen() {
     try {
       const result = await createModelMemoryDraft(cleanNote, contact, event);
       if (request !== draftRequest.current || note.trim() !== cleanNote) return;
-      setDraft(result.draft);
-      setSummary(result.draft.summary);
-      setDraftEngine(Platform.OS === "android" ? "device" : "model");
+      applyDraft(result.draft, Platform.OS === "android" ? "device" : "model");
     } catch {
       if (request !== draftRequest.current || note.trim() !== cleanNote) return;
       const nextDraft = createLocalMemoryDraft(cleanNote);
-      setDraft(nextDraft);
-      setSummary(nextDraft.summary);
-      setDraftEngine("rules");
-      setError("The local model was unavailable, so a private on-device fallback prepared this summary.");
+      applyDraft(nextDraft, "rules");
+      setError("Smart Assist was unavailable, so a basic summary was prepared instead.");
     } finally {
       if (request === draftRequest.current) setDraftBusy(false);
     }
-  };
-
-  const saveAsWritten = () => {
-    if (!cleanNote) {
-      setError("Add a note before saving.");
-      return;
-    }
-    if (cleanNote.length > 500) {
-      setError("Shorten this note to 500 characters or summarize it before saving.");
-      return;
-    }
-    saveMemory(cleanNote, ["note"], [], dictationContributed ? "voice" : "text");
-  };
-
-  const confirmDraft = () => {
-    if (!draft || !summary.trim()) {
-      setError("The timeline summary cannot be empty.");
-      return;
-    }
-    saveMemory(summary.trim(), uniqueStrings(draft.suggestedTags), suggestedFollowUps, dictationContributed ? "voice" : "text");
-  };
-
-  const saveCurrent = () => {
-    if (draft) confirmDraft();
-    else saveAsWritten();
   };
 
   const changeNote = (value: string) => {
@@ -183,38 +278,70 @@ export default function AddMemoryScreen() {
     setDraftBusy(false);
     setNote(value);
     setError(undefined);
-    if (draft) {
-      setDraft(undefined);
-      setSummary("");
-      setDraftEngine(undefined);
-    }
+    if (!summaryLocked) setSummary(suggestedTimelineSummary(value));
+    if (draftEngine) setDraftStale(true);
   };
 
-  const discardDraft = () => {
-    setDraft(undefined);
-    setSummary("");
+  const resetReview = () => {
+    setSummary(suggestedTimelineSummary(note));
+    setSummaryLocked(false);
+    setTagsInput("");
+    setFollowUps([]);
+    setExtractedFacts([]);
     setDraftEngine(undefined);
+    setDraftStale(false);
     setError(undefined);
   };
 
-  const canSave = draft
-    ? Boolean(summary.trim()) && !dictation.busy && !draftBusy
-    : Boolean(cleanNote) && cleanNote.length <= 500 && !dictation.busy && !draftBusy;
-  const canSummarize = !draft && localToolsEnabled && cleanNote.length >= 40 && !dictation.busy;
+  const addFollowUp = () => {
+    const title = newFollowUp.trim();
+    if (!title || followUps.length >= 5) return;
+    setFollowUps((current) => [...current, {
+      id: `follow-up-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
+      title,
+      ...(event?.id ? { eventId: event.id } : {}),
+    }]);
+    setNewFollowUp("");
+  };
+
+  const updateFollowUp = (id: string, updates: Partial<EditableFollowUp>) => {
+    setFollowUps((current) => current.map((followUp) => followUp.id === id ? { ...followUp, ...updates } : followUp));
+  };
+
+  const setFollowUpDue = (id: string, choice: QuickDueChoice) => {
+    const dueAt = dueAtForChoice(choice);
+    setFollowUps((current) => current.map((followUp) => {
+      if (followUp.id !== id) return followUp;
+      if (!dueAt) {
+        const { dueAt: _dueAt, ...withoutDueAt } = followUp;
+        return withoutDueAt;
+      }
+      return { ...followUp, dueAt };
+    }));
+  };
+
+  const canSave = Boolean(cleanNote && cleanSummary) && !dictation.busy && !draftBusy && !saveBusy;
+  const canSummarize = localToolsEnabled && cleanNote.length >= 40 && !dictation.busy;
+  const reviewFooter = draftEngine === "rules"
+    ? "Basic draft · Review every field before saving."
+    : draftEngine
+      ? "AI-assisted · Review every field before saving."
+      : "Your timeline shows the summary. The full note stays with the memory.";
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: "New Memory",
-          headerLeft: () => <BarButton onPress={() => { void close(); }}>Cancel</BarButton>,
-          headerRight: () => <BarButton disabled={!canSave} onPress={saveCurrent}>Save</BarButton>,
+          gestureEnabled: !saveBusy,
+          title: editing ? "Edit Memory" : "New Memory",
+          headerLeft: () => <BarButton disabled={saveBusy} onPress={() => { void close(); }}>Cancel</BarButton>,
+          headerRight: () => <BarButton disabled={!canSave} loading={saveBusy} onPress={() => { void saveCurrent(); }}>Save</BarButton>,
         }}
       />
-      <Screen contentContainerStyle={styles.screen}>
+      <Screen contentContainerStyle={styles.screen} pointerEvents={saveBusy ? "none" : "auto"}>
         <View style={styles.intro}>
-          <AppText accessibilityRole="header" emphasis="semibold" role="title2">Memory for {contact.displayName}</AppText>
-          <AppText role="callout" tone="secondary">Capture the detail you want to remember next time.</AppText>
+          <AppText accessibilityRole="header" emphasis="semibold" role="title2">What do you want to remember about {contact.displayName}?</AppText>
+          <AppText role="callout" tone="secondary">What happened, what mattered, or what should you follow up on?</AppText>
         </View>
 
         <ErrorBanner message={error} />
@@ -227,16 +354,17 @@ export default function AddMemoryScreen() {
             maxLength={4_000}
             multiline
             onChangeText={changeNote}
-            placeholder="They accepted a new role in New York and are looking for AI engineers."
-            placeholderTextColor={colors.inkTertiary}
-            style={styles.textarea}
+            placeholder="Add the full story here."
+            placeholderTextColor={colors.fieldPlaceholder}
+            allowFontScaling={false}
+            style={[
+              styles.textarea,
+              explicitlyScaledTextStyle(StyleSheet.flatten(styles.textarea), fontScale, "body"),
+            ]}
             value={note}
           />
           <View style={styles.editorFooter}>
-            <View style={styles.trustLine}>
-              <AppSymbol name={symbols.shield} size={14} tone="secondary" />
-              <AppText role="footnote" tone="secondary">Processed on this device</AppText>
-            </View>
+            <AppText role="caption1" tone="secondary">{note.length.toLocaleString()}/4,000</AppText>
             {dictation.available ? (
               <IconButton
                 accessibilityLabel={dictation.isTargetActive("memory-note") ? "Stop dictating this memory" : "Dictate this memory"}
@@ -250,9 +378,22 @@ export default function AddMemoryScreen() {
           <MemoryDictationStatus controller={dictation} />
         </View>
 
-        {cleanNote.length > 500 && !draft ? (
-          <AppText role="footnote" tone="warning">Summarize or shorten this note to 500 characters before saving.</AppText>
-        ) : null}
+        <ListSection title="When it happened">
+          <ListRow
+            {...(Platform.OS === "ios" ? { accessoryNode: (
+              <DateTimePicker
+                accessibilityLabel="Date this memory happened"
+                display="compact"
+                mode="date"
+                onValueChange={(_pickerEvent, value) => setOccurredAt(isoWithSelectedLocalDate(occurredAt, value))}
+                value={new Date(occurredAt)}
+              />
+            ) } : { detail: displayDate(occurredAt) })}
+            last
+            title="Occurred"
+          />
+        </ListSection>
+
         {canSummarize ? (
           <Button
             loading={draftBusy}
@@ -260,48 +401,117 @@ export default function AddMemoryScreen() {
             symbol={symbols.sparkles}
             variant="secondary"
           >
-            Summarize
+            {draftEngine ? "Prepare Again" : "Prepare with Smart Assist"}
           </Button>
         ) : null}
 
-        {draft ? (
-          <>
-            <ListSection
-              footer={`${draftEngine === "rules" ? "Private fallback" : "Local model"} · Edit before saving`}
-              groupStyle={styles.reviewGroup}
-              title="Review Summary"
-            >
+        {draftStale ? (
+          <AppText accessibilityLiveRegion="polite" role="footnote" tone="warning">The full note changed after Smart Assist. Prepare again or review the fields below yourself.</AppText>
+        ) : null}
+
+        <ListSection footer={reviewFooter} groupStyle={styles.reviewGroup} title="Review Memory">
+          <FormField
+            accessibilityLabel="Timeline summary"
+            editable={!dictation.busy}
+            label="Timeline summary"
+            maxLength={500}
+            multiline
+            onChangeText={(value) => {
+              setSummary(value);
+              setSummaryLocked(true);
+              setError(undefined);
+            }}
+            placeholder="A short reminder for the timeline"
+            value={summary}
+          />
+          <FormField
+            accessibilityHint="Separate tags with commas"
+            autoCapitalize="words"
+            editable={!dictation.busy}
+            label="Tags"
+            maxLength={400}
+            onChangeText={setTagsInput}
+            placeholder="Hiring, Winnipeg, AI"
+            value={tagsInput}
+          />
+        </ListSection>
+
+        {extractedFacts.length ? (
+          <ListSection footer="These details helped prepare the draft. They are not saved as separate facts." title="Detected Details">
+            {extractedFacts.map((fact, index) => (
+              <ListRow key={`${fact.toLocaleLowerCase()}-${index}`} last={index === extractedFacts.length - 1} symbol={symbols.checkCircle} title={fact} />
+            ))}
+          </ListSection>
+        ) : null}
+
+        <ListSection
+          footer="Each saved follow-up becomes an action on Today. You can change or remove every suggestion."
+          groupStyle={styles.followUpGroup}
+          title="Follow-ups"
+        >
+          {followUps.map((followUp, index) => {
+            const selectedDue = inferredQuickDueChoice(followUp.dueAt);
+            return (
+              <View key={followUp.id} style={[styles.followUpEditor, index > 0 && styles.followUpSeparated]}>
+                <FormField
+                  accessibilityLabel={`Follow-up ${index + 1}`}
+                  label={`Follow-up ${index + 1}`}
+                  maxLength={160}
+                  onChangeText={(title) => updateFollowUp(followUp.id, { title })}
+                  trailing={(
+                    <IconButton
+                      accessibilityLabel={`Remove follow-up ${index + 1}`}
+                      onPress={() => setFollowUps((current) => current.filter((item) => item.id !== followUp.id))}
+                      symbol={symbols.trash}
+                      tone="destructive"
+                    />
+                  )}
+                  value={followUp.title}
+                />
+                <AppText emphasis="semibold" role="caption1" tone="secondary">DUE</AppText>
+                {selectedDue === "existing" && followUp.dueAt ? (
+                  <AppText role="footnote" tone="secondary">Currently {displayDate(followUp.dueAt)}. Choose a quick date to change it.</AppText>
+                ) : null}
+                <View
+                  accessibilityLabel={`Due date for follow-up ${index + 1}`}
+                  style={[styles.dueChoices, stackDueChoices && styles.dueChoicesStacked]}
+                >
+                  {(["none", "today", "tomorrow"] as const).map((choice) => (
+                    <Button
+                      accessibilityLabel={`${choice === "none" ? "No date" : choice === "today" ? "Today" : "Tomorrow"} due date`}
+                      accessibilityState={{ selected: selectedDue === choice }}
+                      key={choice}
+                      onPress={() => setFollowUpDue(followUp.id, choice)}
+                      style={[styles.dueChoice, stackDueChoices && styles.dueChoiceStacked]}
+                      variant={selectedDue === choice ? "secondary" : "quiet"}
+                    >
+                      {choice === "none" ? "No date" : choice === "today" ? "Today" : "Tomorrow"}
+                    </Button>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+          {followUps.length < 5 ? (
+            <View style={[styles.addFollowUp, followUps.length > 0 && styles.followUpSeparated]}>
               <FormField
-                accessibilityLabel="Timeline summary"
-                editable={!dictation.busy}
-                label="Summary"
-                maxLength={500}
-                multiline
-                onChangeText={setSummary}
-                value={summary}
+                label="Add a follow-up"
+                maxLength={160}
+                onChangeText={setNewFollowUp}
+                onSubmitEditing={addFollowUp}
+                placeholder="Send the introduction"
+                returnKeyType="done"
+                value={newFollowUp}
               />
-            </ListSection>
-
-            {extractedFacts.length ? (
-              <ListSection title="Detected Details">
-                {extractedFacts.map((fact, index) => (
-                  <ListRow key={fact.toLocaleLowerCase()} last={index === extractedFacts.length - 1} symbol={symbols.checkCircle} title={fact} />
-                ))}
-              </ListSection>
-            ) : null}
-
-            {suggestedFollowUps.length ? (
-              <ListSection title="Suggested Follow-up">
-                {suggestedFollowUps.map((followUp, index) => (
-                  <ListRow key={followUp.toLocaleLowerCase()} last={index === suggestedFollowUps.length - 1} symbol={symbols.sparkles} title={followUp} />
-                ))}
-              </ListSection>
-            ) : null}
-
-            <View style={styles.discardRow}>
-              <BarButton onPress={discardDraft}>Discard Summary</BarButton>
+              <Button disabled={!newFollowUp.trim()} onPress={addFollowUp} symbol={symbols.plus} variant="secondary">Add Follow-up</Button>
             </View>
-          </>
+          ) : null}
+        </ListSection>
+
+        {draftEngine || tagsInput || followUps.length ? (
+          <View style={styles.resetRow}>
+            <BarButton onPress={resetReview}>Reset Review Fields</BarButton>
+          </View>
         ) : null}
       </Screen>
     </>
@@ -341,8 +551,8 @@ function MemoryDictationStatus({ controller }: { controller: OnDeviceDictationCo
   switch (controller.state.phase) {
     case "preparing": status = "Preparing dictation…"; break;
     case "downloading-assets": status = controller.state.assetProgress === undefined
-      ? "Preparing on-device speech…"
-      : `Preparing on-device speech · ${Math.round(controller.state.assetProgress * 100)}%`; break;
+      ? "Preparing dictation…"
+      : `Preparing dictation · ${Math.round(controller.state.assetProgress * 100)}%`; break;
     case "recording": status = `Listening · ${Math.floor(controller.state.elapsedMs / 1_000)}s`; break;
     case "finalizing": status = "Finishing transcription…"; break;
     case "error": status = controller.state.error; break;
@@ -350,7 +560,7 @@ function MemoryDictationStatus({ controller }: { controller: OnDeviceDictationCo
       if (controller.state.reason === "duration-limit") status = "The one-minute limit was reached. Review the ending before saving.";
       if (controller.state.reason === "character-limit") status = "The note limit was reached. Review the ending before saving.";
       break;
-    case "unavailable": status = "On-device dictation is unavailable."; break;
+    case "unavailable": status = "Dictation is unavailable."; break;
   }
   if (!status) return null;
   const openSettings = Boolean(isError && /settings/i.test(controller.state.error ?? ""));
@@ -369,9 +579,16 @@ const styles = StyleSheet.create({
   editor: { overflow: "hidden", borderRadius: radius.lg, borderCurve: "continuous", backgroundColor: colors.surface },
   textarea: { minHeight: 220, padding: spacing.lg, color: colors.ink, textAlignVertical: "top", ...typography.body },
   editorFooter: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md },
-  trustLine: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   dictationStatusRow: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: spacing.sm, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md },
   dictationStatus: { flex: 1 },
-  reviewGroup: { padding: spacing.lg },
-  discardRow: { alignItems: "flex-end" },
+  reviewGroup: { padding: spacing.lg, gap: spacing.lg },
+  followUpGroup: { overflow: "hidden" },
+  followUpEditor: { padding: spacing.lg, gap: spacing.sm },
+  followUpSeparated: { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth },
+  dueChoices: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  dueChoicesStacked: { flexDirection: "column", flexWrap: "nowrap" },
+  dueChoice: { minWidth: 92, flexGrow: 1, paddingHorizontal: spacing.sm },
+  dueChoiceStacked: { width: "100%", minWidth: 0, flexGrow: 0 },
+  addFollowUp: { padding: spacing.lg, gap: spacing.md },
+  resetRow: { alignItems: "flex-end" },
 });

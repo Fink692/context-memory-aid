@@ -43,12 +43,12 @@ async function localRequest<T>(route: string, schema: Parser<T>, init?: RequestI
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(typeof body?.error === "string" ? body.error : "The local model service returned an error.");
+      throw new Error(typeof body?.error === "string" ? body.error : "Smart Assist returned an error.");
     }
     return schema.parse(body);
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") throw new Error("The local model timed out.");
-    if (error instanceof TypeError) throw new Error("The local PC service is not running. Start it with npm run dev:watcher.");
+    if (error instanceof Error && error.name === "AbortError") throw new Error("Smart Assist took too long to respond.");
+    if (error instanceof TypeError) throw new Error("Smart Assist is unavailable right now.");
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -72,9 +72,9 @@ export async function getLocalModelHealth(): Promise<LocalModelHealth> {
     return LocalModelHealthSchema.parse({
       ok: true,
       provider: "rules",
-      model: "on-device rules",
+      model: "Basic assistance",
       status: "ready",
-      message: "Deterministic smart tools are ready on this device.",
+      message: "Basic assistance is ready.",
     });
   }
   try {
@@ -86,8 +86,8 @@ export async function getLocalModelHealth(): Promise<LocalModelHealth> {
       model: status.model,
       status: ready ? "ready" : "model-missing",
       message: status.message ?? (ready
-        ? `${status.model} is ${status.loaded ? `loaded with ${status.backend ?? "the on-device runtime"}` : "downloaded and ready to load"}.`
-        : "Download Gemma 4 in Privacy & data before using model-generated drafts."),
+        ? `${status.model} is ${status.loaded ? "ready" : "downloaded and ready to load"}.`
+        : "Set up the on-device model in Settings → Smart Assist before using model-generated drafts."),
     });
   } catch (error) {
     return LocalModelHealthSchema.parse({
@@ -95,7 +95,7 @@ export async function getLocalModelHealth(): Promise<LocalModelHealth> {
       provider: "litert-lm",
       model: "Gemma 4 E2B IT",
       status: "runtime-unavailable",
-      message: error instanceof Error ? error.message : "The on-device model runtime is unavailable.",
+      message: error instanceof Error ? error.message : "The Smart Assist model is unavailable.",
     });
   }
 }
@@ -120,7 +120,7 @@ export async function createModelMemoryDraft(
   }
   if (Platform.OS !== "web") {
     return {
-      model: "on-device smart assist",
+      model: "Smart Assist",
       draft: createLocalMemoryDraft(input.transcript),
     };
   }
@@ -135,7 +135,7 @@ export async function createModelContactDraft(
 ): Promise<{ model: string; draft: ContactDraft }> {
   const input = ContactDraftRequestSchema.parse({ transcript });
   if (Platform.OS !== "ios") {
-    throw new Error("Private contact extraction requires the native iPhone app and its downloaded on-device model.");
+    throw new Error("Gemma detail filling requires the iPhone app and its downloaded Smart Assist model.");
   }
   const request = buildContactDraftPrompt(input.transcript);
   const result = await generateOnDevice(request.systemPrompt, request.prompt);
@@ -163,7 +163,7 @@ export async function createModelConversationTopics(
   }
   if (Platform.OS !== "web") {
     return {
-      model: "on-device smart assist",
+      model: "Smart Assist",
       topics: createLocalConversationTopics(contact, input.event),
     };
   }

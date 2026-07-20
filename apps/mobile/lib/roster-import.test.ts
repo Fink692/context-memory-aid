@@ -45,7 +45,7 @@ describe("on-device roster extraction", () => {
   it("never falls back to a network model", async () => {
     runtime.os = "web";
     await expect(createModelRosterDrafts("Jordan Patel"))
-      .rejects.toThrow(/native iPhone app/);
+      .rejects.toThrow(/iPhone app/);
     expect(nativeModel.generateOnDevice).not.toHaveBeenCalled();
   });
 });

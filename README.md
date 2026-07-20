@@ -1,77 +1,191 @@
-# Context
+<p align="center">
+  <img src="apps/mobile/assets/icon.png" width="112" alt="Context app icon">
+</p>
 
-Context is a private, offline-first relationship-memory app for everyday life. It helps you remember people from work, school, your neighborhood, local shops, travel, community groups, and events, recover useful context, and save what matters after a conversation.
+<h1 align="center">Context</h1>
 
-It is deliberately not an internet identity-search product. Every lookup starts from a relationship record the user chose to save; events are an optional way to organize people, not a requirement.
+<p align="center">
+  A private, offline-first relationship memory for the people you already know.
+</p>
 
-## Native-first architecture
+<p align="center">
+  <a href="https://github.com/Fink692/context-memory-aid/actions/workflows/verify.yml"><img src="https://github.com/Fink692/context-memory-aid/actions/workflows/verify.yml/badge.svg" alt="Verify Context"></a>
+  <img src="https://img.shields.io/badge/Expo-57-000020?logo=expo" alt="Expo 57">
+  <img src="https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=111111" alt="React Native 0.86">
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="Strict TypeScript">
+  <img src="https://img.shields.io/badge/core_runtime-$0-166534" alt="Zero cost core runtime">
+</p>
+
+<p align="center">
+  <a href="submission/context-teaser.mp4">Watch the teaser</a> ·
+  <a href="submission/demo-script.md">Read the demo</a> ·
+  <a href="submission/project-story.md">Project story</a> ·
+  <a href="PRIVACY.md">Privacy</a> ·
+  <a href="SECURITY.md">Security</a>
+</p>
+
+Context helps you remember where you met someone, what you last discussed, what matters to them, and how to continue the relationship naturally. Every lookup begins with a person the user chose to save. Events can organize people, but they are never required.
+
+> Context is not internet identity search and it is not a sales CRM. It is a memory aid designed to help people show up better for relationships they already have.
+
+## Why I built it
+
+The idea came from watching my mom meet people. After a conversation, she often opens the Notes app and records the person's name, where they met, and details she wants to remember.
+
+It is a thoughtful habit, but the notes quickly become cluttered. Names are formatted inconsistently, details are spread across different entries, and useful context gets buried among grocery lists and reminders. When she meets someone again, the information may be on her phone, but it is hard to find at the moment she needs it.
+
+Context gives those memories a dedicated home. It keeps the speed of writing a note while organizing every detail around the person it belongs to.
+
+## Product tour
+
+<table>
+  <tr>
+    <td align="center"><strong>Private onboarding</strong></td>
+    <td align="center"><strong>Relationship home</strong></td>
+    <td align="center"><strong>Event assistant</strong></td>
+  </tr>
+  <tr>
+    <td><img src="submission/screenshots/app-1-onboarding.png" width="260" alt="Context private onboarding screen"></td>
+    <td><img src="submission/screenshots/app-2-home.png" width="260" alt="Context home screen"></td>
+    <td><img src="submission/screenshots/app-3-assistant.png" width="260" alt="Context event assistant"></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Person profile</strong></td>
+    <td align="center"><strong>Memory timeline</strong></td>
+    <td align="center"><strong>Privacy controls</strong></td>
+  </tr>
+  <tr>
+    <td><img src="submission/screenshots/app-4-profile.png" width="260" alt="Context person profile"></td>
+    <td><img src="submission/screenshots/app-5-memory.png" width="260" alt="Context memory timeline"></td>
+    <td><img src="submission/screenshots/app-6-privacy.png" width="260" alt="Context privacy controls"></td>
+  </tr>
+</table>
+
+## What Context can do
+
+### Remember people
+
+- Keep one private People directory with relationship context, contact fields, social links, profile photos, and confirmed memories.
+- Add anyone directly or organize people into work, school, community, travel, and event lists.
+- Search an everyday relationship refresher or open an event briefing ordered by who may need context.
+- Review a chronological memory timeline and conversation prompts for each person.
+
+### Capture context quickly
+
+- Add a person or memory manually.
+- Dictate a person description or memory while the visible Dictate control is active.
+- Import selected iPhone Contacts through a review-first flow.
+- Import validated CSV or people-list PDF files with duplicate protection.
+- Turn rough notes into editable smart drafts before saving anything.
+
+### Share intentionally
+
+- Share selected public contact fields as a vCard through an offline QR code.
+- Use the iOS share sheet, including AirDrop when iOS offers it.
+- Scan and review a received contact card before adding or merging it.
+- Keep memories, relationship notes, events, photos, and internal identifiers out of shared cards.
+
+### Stay in control
+
+- Protect the app with optional Face ID or device authentication.
+- Export and restore a validated JSON backup.
+- Delete one memory, remove one person and related data, or erase the complete workspace.
+- Review public Update Watch suggestions before they become memories.
+
+## Privacy by architecture
+
+<p align="center">
+  <img src="submission/context-architecture.svg" width="820" alt="Context privacy architecture">
+</p>
 
 The iOS and Android app has no hosted backend, paid API, API key, subscription, or usage meter.
 
-- Contacts, events, preferences, and confirmed memories stay in the platform app sandbox.
-- iPhone Contacts import is optional and review-first. For the people the user chooses, it can copy names, companies, job titles, and available phone numbers, email addresses, social profiles, and profile thumbnails. It never copies Contacts notes, birthdays, or postal addresses, and it never modifies the system address book.
-- On iOS, person field filling, people-list PDF extraction, smart memory drafts, and conversation prompts can optionally use Gemma 4 E2B IT through LiteRT-LM 0.14.0. Model inference stays on the iPhone; deterministic TypeScript assistance remains available for supported tasks when the model is disabled, absent, or unable to run. The user reviews every generated or extracted record before it is saved.
-- Event search and Context QR badge creation and matching run on the device.
-- The camera is opened only for deliberate QR scanning. Frames are not captured, stored, or uploaded.
-- On iPhone, a single person-description dictation can be turned by local Gemma into editable profile fields; memory notes also support deliberate on-device dictation. The microphone runs only while the visible Dictate control is active, and audio is never saved or uploaded.
-- An optional Face ID or device-authentication lock protects access to the app. Context receives only the operating system's success or failure result, never biometric data.
-- Native Update Watch runs only in the foreground. It checks a public HTTPS source the user confirmed and keeps results in a review queue; it does not silently run in the background.
-- JSON backup export and restore are controlled by the user.
+- Contacts, events, preferences, and confirmed memories remain in the platform app sandbox.
+- iPhone Contacts import copies only fields the user reviews. It never copies Contacts notes, birthdays, postal addresses, or photos, and it never changes the system address book.
+- The camera opens only for deliberate QR scanning. Frames are not captured, stored, or uploaded.
+- The microphone runs only during visible dictation. Audio is never saved or uploaded by Context.
+- Face ID protects access to the app. Context receives only the operating system's success or failure result, never biometric data.
+- Update Watch checks only a public HTTPS source the user confirms. Results remain in a review queue.
+- Biometric identity matching is disabled. The released experience uses manual search and deliberate contact-card QR scanning.
 
-The optional PC web experience can add `qwen3:4b` assistance through a loopback-only Ollama runtime and scheduled Update Watch checks. That enhancement is not required by the native app and is never contacted by an iPhone.
+See [PRIVACY.md](PRIVACY.md) for the complete data-handling model and [SECURITY.md](SECURITY.md) for security boundaries.
 
-The workspace packages are:
+## On-device intelligence
 
-- `apps/mobile` — Expo 57 / React Native app for iOS, Android, and web.
-- `packages/shared` — Zod contracts, deterministic assistance, sample records, CSV parsing, and matching primitives.
+On iOS, Context can optionally use Google's Gemma 4 E2B IT model through LiteRT-LM 0.14.0 for:
 
-## Product capabilities
+- Person field filling from one dictated description
+- People-list PDF extraction
+- Smart memory drafts
+- Conversation prompts
 
-- Maintain one private People directory with optional phone, email, social links, profile photos, relationship context, and event-scoped attendee lists.
-- Add anyone you meet without creating an event, or optionally organize saved people into work, school, community, travel, and event lists.
-- Add people manually, describe one person by voice for reviewable local-Gemma field filling, choose people from iPhone Contacts, or import a validated CSV or people-list PDF with duplicate protection.
-- Search an everyday relationship refresher or a pre-event briefing ordered by who may need context.
-- Create and scan scoped Context QR badges without sending identifiers to a server.
-- Review relationship context, conversation prompts, and a confirmed-memory timeline.
-- Confirm a known person's public RSS/page URL, check it while the app is open, and approve suggestions before saving them as memories.
-- Edit people, delete individual memories, or remove a person and matching data.
-- Speak or type notes, then save them directly or turn them into editable on-device drafts.
-- Export and restore validated JSON backups.
-- Delete the complete local workspace and return to clean onboarding.
+Inference stays inside the app process. Every generated or extracted record is editable and requires review before it is saved. If the model is disabled, unavailable, or unable to complete a supported task, deterministic TypeScript assistance keeps the core workflow usable.
 
-## Run the iOS app
+The model is an optional 2.59 GB download. Context verifies it with a pinned SHA-256 hash and keeps the model artifact separate from relationship backups.
 
-Requirements:
+The optional PC web companion can use `qwen3:4b` through a loopback-only Ollama runtime. This enhancement is not required by the native app and is never contacted by an iPhone.
 
-- Node.js 22.13 or newer.
-- macOS with Xcode 26.4 or newer selected through `xcode-select`.
-- An iOS 16.4-or-newer simulator or device.
-- An Apple Account for a Personal Team physical-device build; paid Apple Developer Program membership for TestFlight or App Store distribution.
+## Technology
+
+| Area | Implementation |
+| --- | --- |
+| Mobile and web | Expo 57, React Native 0.86, Expo Router, React 19 |
+| Language and state | Strict TypeScript, Zustand, Zod |
+| Native iOS | Swift, Objective-C bridges, LiteRT-LM, PDFKit, Speech, LocalAuthentication |
+| Local AI | Gemma 4 E2B IT on iPhone, optional Qwen3 through local Ollama on PC |
+| Sharing and import | vCard, QR, Contacts, CSV, PDF, JSON backup |
+| Desktop | AppKit and WebKit wrapper for the production web bundle |
+| Quality | Vitest, Node test runner, TypeScript, Expo Doctor, GitHub Actions |
+
+## Repository layout
+
+```text
+apps/
+  mobile/          Expo app for iOS, Android, and web
+  desktop-macos/   Native macOS wrapper for the production web build
+packages/
+  shared/          Contracts, matching, parsing, backup, and assistance logic
+docs/              Architecture, deployment, and release documentation
+submission/        Demo, pitch, screenshots, and hackathon materials
+tools/             Local model and Update Watch services and tests
+```
+
+## Run locally
+
+### Requirements
+
+- Node.js 22.23.1, also recorded in `.nvmrc`
+- npm 10 or newer
+- macOS with Xcode 26.4 or newer for iOS development
+- An iOS 16.4 or newer simulator or device
+
+### Install and verify
 
 ```bash
+nvm use
 npm ci
 npm run verify
 cd apps/mobile
 npx expo-doctor
 npx expo install --check
+```
+
+### Start the app
+
+```bash
+npm run dev:mobile
+```
+
+From the Expo terminal, choose iOS, Android, or web. For the native iOS project:
+
+```bash
+cd apps/mobile
 npm run ios:native
 ```
 
-`expo run:ios` generates the native project from `app.json`; the repository uses Expo Continuous Native Generation rather than treating a generated `ios` directory as source configuration. A clean prebuild does not preserve a developer's signing team, so reselect the intended Team in Xcode before each signed device build. QR scanning and on-device dictation need a physical device for final permission and audio-route testing. The remaining native features work without a PC companion or environment file.
+QR scanning and dictation permissions require a physical device for final testing. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for simulator, signed-device, EAS, TestFlight, and App Store instructions.
 
-See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for simulator, signed-device, EAS, and App Store commands and [`docs/IOS_RELEASE_CHECKLIST.md`](docs/IOS_RELEASE_CHECKLIST.md) for release gates.
-
-## Optional on-device Gemma 4
-
-The iOS settings screen can download Google's [Gemma 4 E2B IT LiteRT-LM model](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) over Wi-Fi. The artifact is 2,588,147,712 bytes (about 2.59 GB), and Context recommends about 4.6 GB of free space for the model and optimized runtime cache. It is verified before use with SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`.
-
-Prompts and generated text stay inside the app process. The only app-managed AI-model network boundary is the deliberate model-file download; Context does not attach contacts, memories, events, or prompts to that request. Apple may separately prepare a system speech-language asset after the user taps Dictate, without Context attaching audio, transcripts, or relationship data. The downloaded Gemma artifact and its cache are excluded from iOS device backups and can be removed independently of relationship data. If the model is not ready, Context uses its deterministic on-device fallback instead.
-
-The native integration vendors Google's unmodified [LiteRT-LM 0.14.0](https://github.com/google-ai-edge/LiteRT-LM/tree/v0.14.0) Swift wrapper as a small local package and pins the official iOS XCFramework release asset by SHA-256. This avoids cloning the upstream repository's large history during a clean Xcode build. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for model, runtime, and Apache-2.0 notices.
-
-## Optional PC web enhancement
-
-The web app can use the free local watcher and Ollama service on the same PC. This path is optional and does not change the native release boundary.
+## Optional local PC assistance
 
 ```powershell
 npm ci
@@ -85,15 +199,15 @@ In a second terminal:
 npm --workspace @context/mobile run web
 ```
 
-Open `http://localhost:8081`. The service listens only on `127.0.0.1:8789`, sends bounded model input to Ollama on `127.0.0.1:11434`, and does not write AI prompts or output to the watcher data file.
+The service listens only on `127.0.0.1:8789` and contacts Ollama only on `127.0.0.1:11434`. It does not write AI prompts or model output to the watcher data file.
 
-An optional Windows catch-up task can check confirmed public sources monthly:
+An optional Windows task can perform monthly catch-up checks for user-confirmed public sources:
 
 ```powershell
 npm run install:update-task
 ```
 
-Update Watch does not bypass authentication, CAPTCHAs, robots policies, or platform restrictions. Direct LinkedIn, X, Instagram, Facebook, and TikTok page watching is unsupported. Official RSS/Atom feeds, personal sites, public blogs, company newsrooms, GitHub feeds, and permitted public pages work best.
+Update Watch does not bypass authentication, CAPTCHAs, robots policies, or platform restrictions. RSS and Atom feeds, personal sites, public blogs, company newsrooms, GitHub feeds, and permitted public pages work best.
 
 ## Verification
 
@@ -108,19 +222,20 @@ npm run export:web -- --clear
 CI=1 npx expo prebuild --platform ios --clean --no-install
 ```
 
-CI repeats the clean install and test suite on Linux and macOS. The macOS job also exports an iOS Hermes bundle, generates the unsigned native project, validates the privacy manifest, and asserts the exact camera, Contacts, Face ID, microphone, and speech-recognition purpose strings.
+GitHub Actions repeats the clean install, type checks, full test suite, Expo diagnostics, production exports, clean iOS prebuild, privacy-manifest validation, and permission-string assertions on Linux and macOS.
 
-## Biometrics and recognition
+## Documentation
 
-Face ID is used only as an optional local app lock. Context receives an authentication result from iOS and does not receive or store a face image or Face ID template.
+- [Privacy policy](PRIVACY.md)
+- [Security policy](SECURITY.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
+- [Deployment guide](docs/DEPLOYMENT.md)
+- [iOS release checklist](docs/IOS_RELEASE_CHECKLIST.md)
+- [Biometric research gates](docs/FACE_MODEL_INTEGRATION.md)
+- [Project story and Built with tags](submission/project-story.md)
+- [Two-minute demo](submission/demo-script.md)
+- [Submission checklist](submission/submission-checklist.md)
 
-The event experience uses manual lookup and QR badges. It does not infer identity from camera pixels. Matching primitives and secure native template helpers remain gated for possible future research; no released UI enrolls a face. Before enabling biometric identity matching, complete every gate in [`docs/FACE_MODEL_INTEGRATION.md`](docs/FACE_MODEL_INTEGRATION.md).
+## Product principle
 
-## Privacy and release materials
-
-- [`PRIVACY.md`](PRIVACY.md) — data handling, permissions, retention, and user choices.
-- [`SECURITY.md`](SECURITY.md) — security boundaries and responsible reporting notes.
-- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — third-party runtime and model notices.
-- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — native build and distribution runbook.
-- [`docs/IOS_RELEASE_CHECKLIST.md`](docs/IOS_RELEASE_CHECKLIST.md) — TestFlight and App Store release checklist.
-- `submission/` — pitch, demo, architecture, screenshots, and submission materials.
+Context is a memory prosthetic for relationships. The goal is not to know more people. It is to show up better for the people you already know.

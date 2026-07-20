@@ -139,7 +139,7 @@ Code signing is only part of the release. The owner must also provide:
 - Age-rating responses that account for user-entered notes, deterministic assistance, and optional on-device model-generated drafts.
 - iPhone and, while `supportsTablet` remains enabled, iPad screenshots from the released UI.
 - App description, subtitle, keywords, categories, copyright, review contact, and review notes.
-- Review instructions and sample data or QR badges that let Apple exercise camera, app-lock, import/export, and deletion flows.
+- Review instructions and a sample contact QR that let Apple exercise camera, selected-field sharing, app-lock, import/export, and deletion flows.
 
 Use [`IOS_RELEASE_CHECKLIST.md`](IOS_RELEASE_CHECKLIST.md) as the go/no-go record.
 

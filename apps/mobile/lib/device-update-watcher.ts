@@ -65,11 +65,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseStoredSource(value: unknown): DeviceWatchSource {
   if (!isRecord(value) || !Array.isArray(value.seenKeys)) {
-    throw new Error("The on-device Update Watch store is invalid.");
+    throw new Error("Update Watch data is invalid.");
   }
   const seenKeys = value.seenKeys;
   if (seenKeys.length > 100 || seenKeys.some((key) => typeof key !== "string" || !key || key.length > 80)) {
-    throw new Error("The on-device Update Watch store is invalid.");
+    throw new Error("Update Watch data is invalid.");
   }
   const { seenKeys: _seenKeys, ...publicValue } = value;
   const source = WatchSourceSchema.parse(publicValue);
@@ -79,7 +79,7 @@ function parseStoredSource(value: unknown): DeviceWatchSource {
 
 function parseStoredUpdate(value: unknown): DeviceWatchUpdate {
   if (!isRecord(value) || typeof value.key !== "string" || !value.key || value.key.length > 80) {
-    throw new Error("The on-device Update Watch store is invalid.");
+    throw new Error("Update Watch data is invalid.");
   }
   const { key, ...publicValue } = value;
   const update = WatchUpdateSchema.parse(publicValue);
@@ -101,7 +101,7 @@ async function readStore(): Promise<DeviceWatchStore> {
       updates: parsed.updates.map(parseStoredUpdate),
     };
   } catch {
-    throw new Error("The on-device Update Watch store is invalid. Delete its local data and add the sources again.");
+    throw new Error("Update Watch data is invalid. Remove its saved data and add the sources again.");
   }
 }
 
@@ -212,6 +212,64 @@ function exceedsUtf8Limit(value: string, limit: number): boolean {
   return false;
 }
 
+async function stopOversizedResponse(
+  controller: AbortController,
+  response: Response,
+  reader?: ReadableStreamDefaultReader<Uint8Array>,
+): Promise<never> {
+  try {
+    if (reader) await reader.cancel();
+    else await response.body?.cancel();
+  } catch {
+    // The controller below still terminates the underlying request when the
+    // response implementation does not support explicit stream cancellation.
+  }
+  controller.abort();
+  throw new Error("The source response exceeded the 2 MB safety limit.");
+}
+
+async function readBoundedResponseText(response: Response, controller: AbortController): Promise<string> {
+  const stream = response.body;
+  if (stream && typeof stream.getReader === "function") {
+    const reader = stream.getReader();
+    let byteCount = 0;
+    const chunks: Uint8Array[] = [];
+    try {
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) {
+          const bytes = new Uint8Array(byteCount);
+          let offset = 0;
+          for (const value of chunks) {
+            bytes.set(value, offset);
+            offset += value.byteLength;
+          }
+          if (typeof TextDecoder !== "undefined") return new TextDecoder().decode(bytes);
+          // `Response.text()` is safe here because the stream has already been
+          // copied into a buffer proven to be at or below the limit.
+          return await new Response(bytes).text();
+        }
+        byteCount += chunk.value.byteLength;
+        if (byteCount > MAX_BODY_BYTES) {
+          return await stopOversizedResponse(controller, response, reader);
+        }
+        chunks.push(chunk.value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  // Some React Native fetch implementations do not expose a readable body.
+  // Keep the compatibility path, but never return an oversized decoded body
+  // to the feed or HTML parsers.
+  const body = await response.text();
+  if (exceedsUtf8Limit(body, MAX_BODY_BYTES)) {
+    return await stopOversizedResponse(controller, response);
+  }
+  return body;
+}
+
 async function publicGet(input: URL): Promise<PublicResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -233,17 +291,15 @@ async function publicGet(input: URL): Promise<PublicResponse> {
         const location = response.headers.get("location");
         if (!location) throw new Error("The source returned an invalid redirect.");
         url = parseDevicePublicUrl(new URL(location, responseUrl).href);
+        await response.body?.cancel().catch(() => {});
         continue;
       }
 
       const declaredLength = Number(response.headers.get("content-length"));
       if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
-        throw new Error("The source response exceeded the 2 MB safety limit.");
+        return await stopOversizedResponse(controller, response);
       }
-      const body = await response.text();
-      if (exceedsUtf8Limit(body, MAX_BODY_BYTES)) {
-        throw new Error("The source response exceeded the 2 MB safety limit.");
-      }
+      const body = await readBoundedResponseText(response, controller);
       return {
         body,
         contentType: response.headers.get("content-type")?.toLowerCase() ?? "",
@@ -257,7 +313,7 @@ async function publicGet(input: URL): Promise<PublicResponse> {
       throw new Error("The source timed out after 15 seconds.");
     }
     if (error instanceof TypeError) {
-      throw new Error("The public source could not be reached from this device.");
+      throw new Error("The public source could not be reached.");
     }
     throw error;
   } finally {

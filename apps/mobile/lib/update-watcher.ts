@@ -40,12 +40,12 @@ async function watcherRequest<T>(route: string, schema: Parser<T>, init?: Reques
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(typeof body?.error === "string" ? body.error : "The local watcher returned an error.");
+      throw new Error(typeof body?.error === "string" ? body.error : "Update Watch returned an error.");
     }
     return schema.parse(body);
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("The local watcher timed out.");
+      throw new Error("Update Watch took too long to respond.");
     }
     throw error;
   } finally {

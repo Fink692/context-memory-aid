@@ -48,7 +48,7 @@ function sessionId(): string {
 }
 
 function errorMessage(caught: unknown): string {
-  const message = caught instanceof Error ? caught.message : "On-device dictation could not start.";
+  const message = caught instanceof Error ? caught.message : "Dictation could not start.";
   if (/permission|denied|microphone/i.test(message)) {
     return `${message} You can keep typing or enable access in iOS Settings.`;
   }
@@ -115,7 +115,7 @@ export function useOnDeviceDictation(): OnDeviceDictationController {
       dispatch({
         type: "FAILED",
         sessionId: nextSessionId,
-        message: "On-device dictation is available only in a native iOS build. You can keep typing.",
+        message: "Dictation is available in the iOS app. You can keep typing.",
       });
       return;
     }

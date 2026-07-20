@@ -1,7 +1,7 @@
 PODS:
-  - EXConstants (57.0.3):
+  - EXConstants (57.0.6):
     - ExpoModulesCore
-  - Expo (57.0.4):
+  - Expo (57.0.7):
     - ExpoModulesCore
     - ExpoModulesJSI
     - hermes-engine
@@ -27,33 +27,33 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - ExpoAsset (57.0.3):
+  - ExpoAsset (57.0.6):
     - ExpoModulesCore
-  - ExpoCamera (57.0.1):
+  - ExpoCamera (57.0.3):
     - ExpoModulesCore
-  - ExpoContacts (57.0.0):
+  - ExpoContacts (57.0.2):
     - ExpoModulesCore
-  - ExpoCrypto (57.0.0):
+  - ExpoCrypto (57.0.1):
     - ExpoModulesCore
-  - ExpoDocumentPicker (57.0.0):
+  - ExpoDocumentPicker (57.0.1):
     - ExpoModulesCore
-  - ExpoDomWebView (57.0.0):
+  - ExpoDomWebView (57.0.1):
     - ExpoModulesCore
-  - ExpoFileSystem (57.0.0):
+  - ExpoFileSystem (57.0.1):
     - ExpoModulesCore
-  - ExpoFont (57.0.0):
+  - ExpoFont (57.0.1):
     - ExpoModulesCore
-  - ExpoGlassEffect (57.0.0):
+  - ExpoGlassEffect (57.0.1):
     - ExpoModulesCore
-  - ExpoKeepAwake (57.0.0):
+  - ExpoKeepAwake (57.0.1):
     - ExpoModulesCore
-  - ExpoLinking (57.0.2):
+  - ExpoLinking (57.0.3):
     - ExpoModulesCore
-  - ExpoLocalAuthentication (57.0.0):
+  - ExpoLocalAuthentication (57.0.1):
     - ExpoModulesCore
-  - ExpoLogBox (57.0.0):
+  - ExpoLogBox (57.0.1):
     - React-Core
-  - ExpoModulesCore (57.0.3):
+  - ExpoModulesCore (57.0.6):
     - ExpoModulesJSI
     - hermes-engine
     - RCTRequired
@@ -77,24 +77,24 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - ExpoModulesJSI (57.0.1):
+  - ExpoModulesJSI (57.0.3):
     - React-Core
     - ReactCommon
-  - ExpoModulesWorklets (57.0.3):
+  - ExpoModulesWorklets (57.0.6):
     - ExpoModulesCore
     - ExpoModulesJSI
-  - ExpoRouter (57.0.4):
+  - ExpoRouter (57.0.7):
     - ExpoModulesCore
     - RNScreens
-  - ExpoSecureStore (57.0.0):
+  - ExpoSecureStore (57.0.1):
     - ExpoModulesCore
-  - ExpoSharing (57.0.3):
+  - ExpoSharing (57.0.6):
     - ExpoModulesCore
-  - ExpoSplashScreen (57.0.2):
+  - ExpoSplashScreen (57.0.4):
     - ExpoModulesCore
-  - ExpoSymbols (57.0.0):
+  - ExpoSymbols (57.0.1):
     - ExpoModulesCore
-  - ExpoUI (57.0.4):
+  - ExpoUI (57.0.7):
     - ExpoModulesCore
     - ExpoModulesWorklets
     - React-RCTFabric
@@ -2057,7 +2057,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNGestureHandler (3.0.2):
+  - RNGestureHandler (3.1.0):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2079,34 +2079,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNReanimated (4.5.1):
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-hermes
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - RNReanimated/apple (= 4.5.1)
-    - RNReanimated/common (= 4.5.1)
-    - RNReanimated/view (= 4.5.1)
-    - RNWorklets
-    - Yoga
-  - RNReanimated/apple (4.5.1):
+  - RNReanimated (4.5.2):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2128,9 +2101,12 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+    - RNReanimated/apple (= 4.5.2)
+    - RNReanimated/common (= 4.5.2)
+    - RNReanimated/view (= 4.5.2)
     - RNWorklets
     - Yoga
-  - RNReanimated/common (4.5.1):
+  - RNReanimated/apple (4.5.2):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2154,7 +2130,31 @@ PODS:
     - ReactNativeDependencies
     - RNWorklets
     - Yoga
-  - RNReanimated/view (4.5.1):
+  - RNReanimated/common (4.5.2):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNWorklets
+    - Yoga
+  - RNReanimated/view (4.5.2):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2270,7 +2270,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNWorklets (0.10.2):
+  - RNWorklets (0.11.1):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2292,10 +2292,10 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - RNWorklets/apple (= 0.10.2)
-    - RNWorklets/common (= 0.10.2)
+    - RNWorklets/apple (= 0.11.1)
+    - RNWorklets/common (= 0.11.1)
     - Yoga
-  - RNWorklets/apple (0.10.2):
+  - RNWorklets/apple (0.11.1):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2318,7 +2318,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNWorklets/common (0.10.2):
+  - RNWorklets/common (0.11.1):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2674,30 +2674,30 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  EXConstants: 850a80a96c7854acc6f65ef55f7eb0d2fe82c39f
-  Expo: a57eca9a47a1cd1c75d28be5d06a66e12dde1c8c
-  ExpoAsset: fc429c61615141b81faabdb5b0c4f8f2861c7449
-  ExpoCamera: d5ca5e1d4d688284fd3b884b595e4c3d7308c90c
-  ExpoContacts: a0f2c3fde17c954664cab6e9123e764e6f3590aa
-  ExpoCrypto: 2c8c1f0b1a620a52b9794768049ec683a037fca5
-  ExpoDocumentPicker: 984b9b4c04849d5b6488ad594fc522c9574ffe71
-  ExpoDomWebView: ae603aa2c151929ebb1ee68c4607e105b68b4ebc
-  ExpoFileSystem: bf907fa86da7cc9088331f1930a572f43353ed50
-  ExpoFont: 15dc02c38fcb621aa56c87c3ab840f281e92f6cf
-  ExpoGlassEffect: ebbbe5a8ffefc45b51c6c6339214aa81162213bb
-  ExpoKeepAwake: c5a7e46e8f52c093370ea89457d73c060d0b2a2e
-  ExpoLinking: d55530d084a5ad79160c5b738101d6d6475520d6
-  ExpoLocalAuthentication: 934b3cfab91473c0cf25114a119ac856eac122a5
-  ExpoLogBox: 71393ad8a15193044673cee88f6f41cf014bccd7
-  ExpoModulesCore: 4a8b5444f63e5f45cc670a84a9dac5ad13f5b062
-  ExpoModulesJSI: ca1381e851de6269705442ba66bc54a3320a142b
-  ExpoModulesWorklets: 7ee538b64f31c28729cd5a6a693593b300452b4f
-  ExpoRouter: 97f8da5a36c2d5b92b7b64258ffdc7dd0c057db5
-  ExpoSecureStore: 8e3efc4a558e43fbbd80b61b0106b8521a409545
-  ExpoSharing: 9eb3ee4b46f1a9a993dd777140ffacf9ccf551bf
-  ExpoSplashScreen: 30410cb4714241e37bedee927e572335f591042f
-  ExpoSymbols: 022333345d64e5d61a21351d287f8f57c498d416
-  ExpoUI: 4382121710efdc648b35e04b569f6b9988829d9c
+  EXConstants: f5e35cc1645fd7cc675246dbeeaa548ef0de951c
+  Expo: 5c33e633a2188dbd94ab5403a3def3baaff0a081
+  ExpoAsset: 8b325e33a177bc3b340b9d849b89802701e2526e
+  ExpoCamera: 3f54076a116c65281ef279db56fb6c43066f24a3
+  ExpoContacts: 1476bb33ceac504b108dae293ed95929a7c54639
+  ExpoCrypto: 4272c8712a133905a00059ef6e109759fbda2cee
+  ExpoDocumentPicker: cc366f0080a6c2c71b896bfb4d0d0e63da4cb709
+  ExpoDomWebView: fa9c72fe29dd4649197a7ecb07ddd870d55c4eda
+  ExpoFileSystem: 3030d5166d05eb90b8f40d433f6007797310861f
+  ExpoFont: 17668fb7b4e06edf35e015183eb7bc09d83be637
+  ExpoGlassEffect: 5d25ad0b43e81255ff5d41039eb2131ebf7aaa5a
+  ExpoKeepAwake: 20a87dafdd9d84d68673e8eaf1a1c7eed8f92659
+  ExpoLinking: 0736f9b28c88498d167d3f6ecd3f3d7ac8886671
+  ExpoLocalAuthentication: 234cee5cce4a60f186aeb7e71f6034d083d6cabd
+  ExpoLogBox: 083b0283fc9df6748661caec5a2837569d83b8a6
+  ExpoModulesCore: 513f3f2c2c04df7525bb7d73b96a097689ba6a4e
+  ExpoModulesJSI: fb97ecc7a865c4d45c2eee8a5883afa51dceb8ed
+  ExpoModulesWorklets: bd803a5ecaae29685af51d72bb51976ebbb9b3d4
+  ExpoRouter: ae9d6c1d40f1476ae25fe1cd07eb490800762347
+  ExpoSecureStore: bfe0879ff06a729a4a3ff4417ac4e1cd5f2aea04
+  ExpoSharing: 43c2a84819d4714768dd341f3d5680b191cd0bdc
+  ExpoSplashScreen: a5bcc0d2338f162ff4af83ef4d239ac667431b8c
+  ExpoSymbols: 904c2e6a3164c18bd065f9c84c9c630934fa7ce9
+  ExpoUI: 1e538c474877ab878dbb0e62e7e1b67c049672f7
   FBLazyVector: b3e7ad108f0d882e30445c5527d774e3fd432f3d
   hermes-engine: 186c86628345f62daba7d9442d7ef8e88ce6f325
   RCTDeprecation: 2a74a2c57675e64419bd89078efde81f7c1de90b
@@ -2776,11 +2776,11 @@ SPEC CHECKSUMS:
   RNCAsyncStorage: 0f84413588571e74ef9cff6e3b669346e3abf9cb
   RNCMaskedView: 48989935d9665d97d87fa7e44f486b4d22cd5b9f
   RNDateTimePicker: c33c46d089998652b576a58ac08108db8c9af6f1
-  RNGestureHandler: ef19613372e4c87374fe9494862e366d82d1852c
-  RNReanimated: d4cbb082c5e500928661c1a7d3738546b18b9b91
+  RNGestureHandler: 6206fc566272f60a2d57a0b3258c495a73b7dc90
+  RNReanimated: 09ca70340c61e3be77404ba1428cdb293ab4e201
   RNScreens: 9b2e552ea56792a85c4efcc279edd61d9014be1c
   RNSVG: 5a15a0cf553a18ab64bb38eeb4041e7e6d97bcec
-  RNWorklets: 3ccc66fc73e8c029f936dcef693989e6b7463992
+  RNWorklets: cd10c7beea4e11ead318f2c1bf765e7dabfe0d9f
   Yoga: 94172d87dd5d83fc929bf1ee53121b5d4490b5f2
 
 PODFILE CHECKSUM: d704bc4dd70269fb6e6072c030bba77486583e67

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, Linking, Platform, StyleSheet, View } from "react-native";
+import { Alert, AppState, Linking, Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppSymbol, AppText, Button, ErrorBanner, Pill, SuccessBanner, symbols } from "./ui";
 import { colors, radius, spacing } from "@/constants/theme";
+import { shouldStackSharedRow } from "@/lib/accessibility-layout";
 import {
   GEMMA_LICENSE_URL,
   GEMMA_MODEL_CARD_URL,
@@ -36,13 +37,23 @@ function statusLabel(status?: OnDeviceModelStatus): string {
   }
 }
 
-export function OnDeviceModelManager() {
+export function OnDeviceModelManager({
+  onStatusChange,
+}: {
+  onStatusChange?: (status: OnDeviceModelStatus | undefined) => void;
+} = {}) {
   const [status, setStatus] = useState<OnDeviceModelStatus>();
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState<string>();
   const [actionBusy, setActionBusy] = useState(false);
+  const { fontScale, width } = useWindowDimensions();
+  const stackActions = shouldStackSharedRow({ fontScale, width });
   const request = useRef(0);
   const runtimeAvailable = Platform.OS === "ios" && isOnDeviceModelRuntimeAvailable();
+
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [onStatusChange, status]);
 
   const refresh = useCallback(async () => {
     const current = ++request.current;
@@ -86,8 +97,8 @@ export function OnDeviceModelManager() {
   const loadAndTestModel = async (): Promise<OnDeviceModelStatus> => {
     await loadOnDeviceModel();
     await generateOnDevice(
-      "This is a private on-device runtime self-test. Reply with only READY.",
-      "Confirm that local inference is responding.",
+      "This is a Smart Assist self-test. Reply with only READY.",
+      "Confirm that Smart Assist is responding.",
     );
     return getOnDeviceModelStatus();
   };
@@ -104,7 +115,7 @@ export function OnDeviceModelManager() {
       setStatus(next);
       setSuccess(message);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The on-device model action failed.");
+      setError(caught instanceof Error ? caught.message : "The Smart Assist model action failed.");
     } finally {
       setActionBusy(false);
     }
@@ -116,7 +127,7 @@ export function OnDeviceModelManager() {
   const confirmDownload = () => {
     Alert.alert(
       "Download Gemma 4?",
-      "The 2.59 GB public model downloads over Wi-Fi, is verified on this iPhone, and never receives your notes during download.",
+      "The 2.59 GB public model downloads over Wi-Fi and is verified before use.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -129,7 +140,7 @@ export function OnDeviceModelManager() {
 
   const confirmDelete = () => {
     Alert.alert(
-      "Delete the on-device model?",
+      "Delete the Smart Assist model?",
       "This removes the model and compiled cache. Your people and memories remain untouched.",
       [
         { text: "Cancel", style: "cancel" },
@@ -142,6 +153,15 @@ export function OnDeviceModelManager() {
     );
   };
 
+  const openReference = async (url: string, label: string) => {
+    setError(undefined);
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setError(`${label} could not be opened right now.`);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -149,7 +169,7 @@ export function OnDeviceModelManager() {
           <AppSymbol name={symbols.model} size={20} tone="tint" weight="semibold" />
         </View>
         <View style={styles.flex}>
-          <AppText emphasis="semibold" role="headline">On-device Model</AppText>
+          <AppText emphasis="semibold" role="headline">Smart Assist Model</AppText>
           <AppText role="footnote" tone="secondary">Gemma 4 E2B IT · {statusLabel(status)}</AppText>
         </View>
         <Pill tone={status?.installed ? "safe" : "warning"}>{status?.installed ? "Installed" : "Optional"}</Pill>
@@ -159,6 +179,7 @@ export function OnDeviceModelManager() {
       {isTransferring ? (
         <View style={styles.progressBlock}>
           <View
+            accessible
             accessibilityLabel={`Gemma model download ${Math.round(progress * 100)} percent`}
             accessibilityRole="progressbar"
             accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
@@ -175,28 +196,28 @@ export function OnDeviceModelManager() {
       <ErrorBanner message={error} />
       <SuccessBanner message={success} />
 
-      <View style={styles.actions}>
+      <View style={[styles.actions, stackActions && styles.actionsStacked]}>
         {runtimeAvailable && status && !status.installed && !isTransferring ? (
-          <Button disabled={actionBusy} onPress={confirmDownload} style={styles.action} symbol={symbols.model}>Download Model</Button>
+          <Button disabled={actionBusy} onPress={confirmDownload} style={[styles.action, stackActions && styles.actionStacked]} symbol={symbols.model}>Download Model</Button>
         ) : null}
         {status?.status === "downloading" ? (
-          <Button loading={actionBusy} onPress={() => { void runAction(cancelOnDeviceModelDownload, "Model download cancelled."); }} style={styles.action} variant="secondary">Cancel download</Button>
+          <Button loading={actionBusy} onPress={() => { void runAction(cancelOnDeviceModelDownload, "Model download cancelled."); }} style={[styles.action, stackActions && styles.actionStacked]} variant="secondary">Cancel download</Button>
         ) : null}
         {status?.installed && !status.loaded ? (
-          <Button loading={actionBusy} onPress={() => { void runAction(loadAndTestModel, "Gemma 4 completed a private self-test and is ready."); }} style={styles.action} variant="secondary">Run Self-Test</Button>
+          <Button loading={actionBusy} onPress={() => { void runAction(loadAndTestModel, "Gemma 4 completed its self-test and is ready."); }} style={[styles.action, stackActions && styles.actionStacked]} variant="secondary">Run Self-Test</Button>
         ) : null}
         {status?.loaded ? (
-          <Button loading={actionBusy} onPress={() => { void runAction(unloadOnDeviceModel, "Gemma 4 was unloaded from memory. It remains downloaded."); }} style={styles.action} variant="secondary">Unload Model</Button>
+          <Button loading={actionBusy} onPress={() => { void runAction(unloadOnDeviceModel, "Gemma 4 was unloaded from memory. It remains downloaded."); }} style={[styles.action, stackActions && styles.actionStacked]} variant="secondary">Unload Model</Button>
         ) : null}
         {status?.installed ? (
-          <Button disabled={actionBusy || status.busy} onPress={confirmDelete} style={styles.action} variant="quiet">Delete Model</Button>
+          <Button disabled={actionBusy || status.busy} onPress={confirmDelete} style={[styles.action, stackActions && styles.actionStacked]} variant="quiet">Delete Model</Button>
         ) : null}
-        <Button disabled={!runtimeAvailable} loading={actionBusy} onPress={() => { void refresh(); }} style={styles.action} variant="quiet">Refresh</Button>
+        <Button disabled={!runtimeAvailable} loading={actionBusy} onPress={() => { void refresh(); }} style={[styles.action, stackActions && styles.actionStacked]} variant="quiet">Refresh</Button>
       </View>
 
-      <View style={styles.links}>
-        <Button onPress={() => { void Linking.openURL(GEMMA_MODEL_CARD_URL); }} style={styles.linkButton} variant="quiet">Model card</Button>
-        <Button onPress={() => { void Linking.openURL(GEMMA_LICENSE_URL); }} style={styles.linkButton} variant="quiet">Apache 2.0 license</Button>
+      <View style={[styles.links, stackActions && styles.linksStacked]}>
+        <Button onPress={() => { void openReference(GEMMA_MODEL_CARD_URL, "The model card"); }} style={[styles.linkButton, stackActions && styles.linkButtonStacked]} variant="quiet">Model card</Button>
+        <Button onPress={() => { void openReference(GEMMA_LICENSE_URL, "The model license"); }} style={[styles.linkButton, stackActions && styles.linkButtonStacked]} variant="quiet">Apache 2.0 license</Button>
       </View>
       <AppText role="footnote" tone="secondary">Suggestions stay editable and nothing is saved until you confirm it.</AppText>
     </View>
@@ -212,7 +233,11 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, overflow: "hidden", borderRadius: radius.pill, backgroundColor: colors.fillStrong },
   progressFill: { height: "100%", borderRadius: radius.pill, backgroundColor: colors.success },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  actionsStacked: { flexDirection: "column" },
   action: { flexGrow: 1, minWidth: 160 },
+  actionStacked: { width: "100%", minWidth: 0, flexGrow: 0 },
   links: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  linksStacked: { flexDirection: "column" },
   linkButton: { minHeight: 36, paddingHorizontal: spacing.sm },
+  linkButtonStacked: { width: "100%" },
 });

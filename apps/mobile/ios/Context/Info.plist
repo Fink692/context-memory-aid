@@ -48,15 +48,15 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Context uses the camera only while you scan an event badge. Camera frames are not stored.</string>
+	<string>Allow Context to scan a contact QR code while the scanner is open. Camera video stays on this iPhone and is not saved.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Allow Context to show the people you choose and copy their name, company, role, and available phone, email, social profile, and profile thumbnail into your private People directory. Context never modifies Contacts.</string>
+	<string>Allow Context to show the people you choose and copy their name, company, role, and available phone, email, and social profile into your private People directory. Context does not modify Contacts.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Allow Context to use Face ID to unlock your private relationship memory.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Allow Context to use the microphone only while you dictate private relationship details. Audio is processed on this iPhone and is not saved.</string>
+	<string>Allow Context to use the microphone while you dictate relationship details. Audio is not saved.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Allow Context to convert speech to text on this iPhone. Context requires on-device recognition and never uploads the recording.</string>
+	<string>Allow Context to turn dictation into editable text.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
@@ -77,6 +77,8 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>

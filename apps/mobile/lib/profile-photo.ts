@@ -4,6 +4,8 @@ import * as FileSystem from "expo-file-system/legacy";
 interface NativeProfilePhotoPicker {
   pick(): Promise<{ uri: string } | null>;
   persist(uri: string): Promise<{ uri: string }>;
+  prune?(referencedUris: string[]): Promise<{ removed: number; retained: number }>;
+  clear(): Promise<void>;
 }
 
 const nativePicker = NativeModules.ContextProfilePhotoPicker as NativeProfilePhotoPicker | undefined;
@@ -23,17 +25,46 @@ export async function pickProfilePhoto(): Promise<string | undefined> {
 }
 
 export async function deletePrivateProfilePhoto(uri: string | undefined): Promise<void> {
-  if (!uri?.startsWith("file://") || !uri.includes("/ContextProfilePhotos/")) return;
+  if (!uri || !isPrivateProfilePhotoUri(uri)) return;
   await FileSystem.deleteAsync(uri, { idempotent: true });
+}
+
+export async function deletePrivateProfilePhotos(uris: readonly string[]): Promise<string[]> {
+  const targets = [...new Set(uris)].filter(isPrivateProfilePhotoUri);
+  const results = await Promise.allSettled(targets.map((uri) => deletePrivateProfilePhoto(uri)));
+  return targets.filter((_, index) => results[index]?.status === "rejected");
+}
+
+export function isPrivateProfilePhotoUri(uri: string | undefined): boolean {
+  return Boolean(uri?.startsWith("file://") && uri.includes("/ContextProfilePhotos/"));
+}
+
+export async function clearPrivateProfilePhotos(): Promise<void> {
+  if (Platform.OS !== "ios") return;
+  if (!nativePicker?.clear) {
+    throw new Error("This build cannot clear private profile photos. Install the latest native iPhone build and try again.");
+  }
+  await nativePicker.clear();
+}
+
+export async function prunePrivateProfilePhotos(
+  referencedUris: readonly (string | undefined)[],
+): Promise<{ removed: number; retained: number }> {
+  if (Platform.OS !== "ios" || !nativePicker?.prune) {
+    return { removed: 0, retained: 0 };
+  }
+  const managedUris = [...new Set(referencedUris.filter((uri): uri is string =>
+    isPrivateProfilePhotoUri(uri)))];
+  return nativePicker.prune(managedUris);
 }
 
 export async function persistPrivateProfilePhoto(uri: string | undefined): Promise<string | undefined> {
   if (!uri) return undefined;
-  if (uri.startsWith("file://") && uri.includes("/ContextProfilePhotos/")) return uri;
+  if (isPrivateProfilePhotoUri(uri)) return uri;
   if (Platform.OS !== "ios" || !nativePicker?.persist || !uri.startsWith("file://")) return uri;
   const result = await nativePicker.persist(uri);
   const privateUri = result.uri.trim();
-  if (!privateUri.startsWith("file://") || !privateUri.includes("/ContextProfilePhotos/")) {
+  if (!isPrivateProfilePhotoUri(privateUri)) {
     throw new Error("Context could not create a private copy of that profile photo.");
   }
   return privateUri.slice(0, 2_048);

@@ -21,8 +21,9 @@ function adaptiveColor(light: string, dark: string): ColorValue {
  */
 export const colors = {
   ink: systemColor("label", "#111114"),
-  inkMuted: systemColor("secondaryLabel", "#5E5E65"),
-  inkTertiary: systemColor("tertiaryLabel", "#8E8E93"),
+  inkMuted: adaptiveColor("#5E5E65", "#B8B8BE"),
+  inkTertiary: adaptiveColor("#6E6E73", "#A0A0A7"),
+  fieldPlaceholder: adaptiveColor("#6E6E73", "#AEAEB2"),
   canvas: systemColor("systemGroupedBackground", "#F2F2F7"),
   canvasPlain: systemColor("systemBackground", "#FFFFFF"),
   surface: systemColor("secondarySystemGroupedBackground", "#FFFFFF"),
@@ -33,6 +34,7 @@ export const colors = {
   border: systemColor("separator", "rgba(60, 60, 67, 0.22)"),
   borderStrong: systemColor("opaqueSeparator", "#C6C6C8"),
   primary: adaptiveColor("#5856D6", "#7D7AFF"),
+  primaryFill: adaptiveColor("#5856D6", "#5E5CE6"),
   primaryDark: adaptiveColor("#3634A3", "#B8B7FF"),
   primarySoft: adaptiveColor("#EEEDFF", "#2B294F"),
   primaryBorder: adaptiveColor("#D8D7FA", "#464378"),

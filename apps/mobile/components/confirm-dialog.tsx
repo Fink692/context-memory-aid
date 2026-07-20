@@ -1,6 +1,7 @@
-import { Modal, Platform, StyleSheet, View } from "react-native";
+import { Modal, Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText, BarButton, Button, Screen } from "@/components/ui";
 import { spacing } from "@/constants/theme";
+import { shouldStackSharedRow } from "@/lib/accessibility-layout";
 
 export function ConfirmDialog({
   visible,
@@ -21,6 +22,9 @@ export function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { fontScale, width } = useWindowDimensions();
+  const stackHeader = shouldStackSharedRow({ fontScale, width });
+
   return (
     <Modal
       allowSwipeDismissal={!busy}
@@ -37,18 +41,18 @@ export function ConfirmDialog({
         safeEdges={["top", "right", "bottom", "left"]}
         {...(busy ? {} : { onAccessibilityEscape: onCancel })}
       >
-        <View style={styles.sheetBar}>
+        <View style={[styles.sheetBar, stackHeader && styles.sheetBarStacked]}>
           <BarButton disabled={busy} onPress={onCancel}>Cancel</BarButton>
           <AppText
             accessibilityRole="header"
             emphasis="semibold"
-            numberOfLines={2}
+            numberOfLines={stackHeader ? undefined : 2}
             role="headline"
-            style={styles.title}
+            style={[styles.title, stackHeader && styles.titleStacked]}
           >
             {title}
           </AppText>
-          <View accessibilityElementsHidden importantForAccessibility="no" style={styles.barSpacer} />
+          {!stackHeader ? <View accessibilityElementsHidden importantForAccessibility="no" style={styles.barSpacer} /> : null}
         </View>
 
         <View style={styles.content}>
@@ -72,7 +76,9 @@ export function ConfirmDialog({
 const styles = StyleSheet.create({
   sheet: { flexGrow: 1, paddingTop: spacing.sm, paddingBottom: spacing.xl },
   sheetBar: { minHeight: 44, flexDirection: "row", alignItems: "center" },
+  sheetBarStacked: { flexDirection: "column", alignItems: "flex-start", gap: spacing.sm },
   title: { flex: 1, minWidth: 0, paddingHorizontal: spacing.sm, textAlign: "center" },
+  titleStacked: { width: "100%", flex: 0, paddingHorizontal: 0, textAlign: "left" },
   barSpacer: { width: 44, height: 44 },
   content: { flex: 1, justifyContent: "space-between", gap: spacing.xl, paddingTop: spacing.xl },
   primaryAction: { width: "100%", marginTop: "auto" },

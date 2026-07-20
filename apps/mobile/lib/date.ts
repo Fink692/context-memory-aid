@@ -1,3 +1,5 @@
+import type { Event } from "@context/shared";
+
 export function relativeDate(value?: string): string | undefined {
   if (!value) return undefined;
   const then = new Date(value);
@@ -12,4 +14,36 @@ export function relativeDate(value?: string): string | undefined {
 
 export function displayDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
+}
+
+export interface EventScheduleFormatOptions {
+  locale?: Intl.LocalesArgument;
+  timeZone?: string;
+}
+
+/** Formats an event's full local schedule without hiding its time or end. */
+export function displayEventSchedule(
+  event: Pick<Event, "startsAt" | "endsAt">,
+  options: EventScheduleFormatOptions = {},
+): string {
+  const { locale, timeZone } = options;
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    ...(timeZone ? { timeZone } : {}),
+  });
+  const timeFormatter = new Intl.DateTimeFormat(locale, {
+    timeStyle: "short",
+    ...(timeZone ? { timeZone } : {}),
+  });
+  const start = new Date(event.startsAt);
+  const startDate = dateFormatter.format(start);
+  const startTime = timeFormatter.format(start);
+  if (!event.endsAt) return `${startDate} · ${startTime}`;
+
+  const end = new Date(event.endsAt);
+  const endDate = dateFormatter.format(end);
+  const endTime = timeFormatter.format(end);
+  return startDate === endDate
+    ? `${startDate} · ${startTime}–${endTime}`
+    : `${startDate} · ${startTime} – ${endDate} · ${endTime}`;
 }

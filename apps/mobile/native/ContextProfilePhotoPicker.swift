@@ -1,10 +1,13 @@
 import Foundation
+import ImageIO
 import PhotosUI
 import React
 import UIKit
+import UniformTypeIdentifiers
 
 private enum ProfilePhotoPickerError: LocalizedError {
   case busy
+  case cleared
   case unavailable
   case unreadable
 
@@ -12,10 +15,12 @@ private enum ProfilePhotoPickerError: LocalizedError {
     switch self {
     case .busy:
       return "Finish choosing the current photo before opening the photo library again."
+    case .cleared:
+      return "That photo request was cancelled because Context's private photos were cleared."
     case .unavailable:
       return "The iPhone photo picker is unavailable right now."
     case .unreadable:
-      return "Context could not create a private copy of that photo. Choose another image."
+      return "Context could not add that photo. Choose a JPEG, PNG, HEIC, or TIFF image."
     }
   }
 }
@@ -23,6 +28,24 @@ private enum ProfilePhotoPickerError: LocalizedError {
 @objc(ContextProfilePhotoPicker)
 final class ContextProfilePhotoPicker: NSObject, PHPickerViewControllerDelegate {
   private let workQueue = DispatchQueue(label: "com.fink692.contextmemory.profile-photo", qos: .userInitiated)
+  private let maximumInputBytes = 50 * 1_024 * 1_024
+  private let maximumOutputBytes = 6 * 1_024 * 1_024
+  private let maximumPixelCount: UInt64 = 80_000_000
+  private let maximumSourceDimension: UInt64 = 20_000
+  private let maximumThumbnailDimension = 1_200
+  private let acceptedImageTypes: Set<String> = [
+    "public.heic",
+    "public.heif",
+    "public.jpeg",
+    "public.png",
+    "public.tiff",
+  ]
+
+  // Accessed only on workQueue. Incrementing this invalidates any picker whose
+  // file-provider callback has not reached the serialized save step yet.
+  private var clearEpoch: UInt64 = 0
+  private var filesCreatedThisProcess: Set<String> = []
+  private var pickerEpoch: UInt64?
   private var resolver: RCTPromiseResolveBlock?
   private var rejecter: RCTPromiseRejectBlock?
   private weak var presentedPicker: PHPickerViewController?
@@ -46,6 +69,7 @@ final class ContextProfilePhotoPicker: NSObject, PHPickerViewControllerDelegate 
 
       self.resolver = resolve
       self.rejecter = reject
+      self.pickerEpoch = self.workQueue.sync { self.clearEpoch }
       var configuration = PHPickerConfiguration(photoLibrary: .shared())
       configuration.filter = .images
       configuration.selectionLimit = 1
@@ -68,16 +92,47 @@ final class ContextProfilePhotoPicker: NSObject, PHPickerViewControllerDelegate 
         guard let sourceURL = URL(string: uri), sourceURL.isFileURL else {
           throw ProfilePhotoPickerError.unreadable
         }
-        let hasSecurityScope = sourceURL.startAccessingSecurityScopedResource()
-        defer {
-          if hasSecurityScope { sourceURL.stopAccessingSecurityScopedResource() }
-        }
-        guard let image = UIImage(contentsOfFile: sourceURL.path) else {
-          throw ProfilePhotoPickerError.unreadable
-        }
-        resolve(["uri": try self.savePrivateCopy(of: image)])
+        resolve(["uri": try self.savePrivateCopy(from: sourceURL)])
       } catch {
         reject("E_PHOTO_READ", error.localizedDescription, error)
+      }
+    }
+  }
+
+  @objc(prune:resolver:rejecter:)
+  func prune(
+    _ referencedUris: [String],
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    workQueue.async {
+      do {
+        resolve(try self.prunePrivateCopies(referencedUris: referencedUris))
+      } catch {
+        reject("E_PHOTO_PRUNE", "Context could not finish cleaning up unreferenced private photos.", error)
+      }
+    }
+  }
+
+  @objc(clear:rejecter:)
+  func clear(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    workQueue.async {
+      // Invalidate file-provider callbacks before attempting the wipe. Whether
+      // this block runs before or after a save, the serial queue leaves no file
+      // write racing the directory removal.
+      self.clearEpoch &+= 1
+      self.filesCreatedThisProcess.removeAll()
+      do {
+        let directory = self.privatePhotoDirectory()
+        if FileManager.default.fileExists(atPath: directory.path) {
+          try FileManager.default.removeItem(at: directory)
+        }
+        resolve(NSNull())
+      } catch {
+        reject("E_PHOTO_CLEAR", "Context could not clear its private profile photos.", error)
       }
     }
   }
@@ -88,48 +143,156 @@ final class ContextProfilePhotoPicker: NSObject, PHPickerViewControllerDelegate 
       finish(with: NSNull())
       return
     }
-    guard result.itemProvider.canLoadObject(ofClass: UIImage.self) else {
+    let imageType = UTType.image.identifier
+    guard result.itemProvider.hasItemConformingToTypeIdentifier(imageType),
+          let selectionEpoch = pickerEpoch else {
       fail(ProfilePhotoPickerError.unreadable)
       return
     }
 
-    result.itemProvider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
-      guard let self, let image = object as? UIImage else {
+    result.itemProvider.loadFileRepresentation(forTypeIdentifier: imageType) { [weak self] sourceURL, _ in
+      guard let self, let sourceURL else {
         self?.fail(ProfilePhotoPickerError.unreadable)
         return
       }
-      do {
-        let uri = try self.savePrivateCopy(of: image)
+
+      // NSItemProvider owns this temporary URL only for the duration of its
+      // completion callback, so synchronously enter the same serial queue used
+      // by persist(), prune(), and clear(). The decoded thumbnail is bounded.
+      let saveResult: Result<String, Error> = self.workQueue.sync {
+        Result {
+          guard self.clearEpoch == selectionEpoch else {
+            throw ProfilePhotoPickerError.cleared
+          }
+          return try self.savePrivateCopy(from: sourceURL)
+        }
+      }
+      switch saveResult {
+      case .success(let uri):
         self.finish(with: ["uri": uri])
-      } catch {
+      case .failure(let error):
         self.fail(error)
       }
     }
   }
 
-  private func savePrivateCopy(of source: UIImage) throws -> String {
-    let maximumDimension: CGFloat = 1_200
-    let sourceSize = source.size
-    let largestDimension = max(sourceSize.width, sourceSize.height)
-    let scale = largestDimension > maximumDimension ? maximumDimension / largestDimension : 1
-    let targetSize = CGSize(
-      width: max(1, floor(sourceSize.width * scale)),
-      height: max(1, floor(sourceSize.height * scale))
-    )
-    let renderer = UIGraphicsImageRenderer(size: targetSize)
-    let normalized = renderer.image { _ in
-      source.draw(in: CGRect(origin: .zero, size: targetSize))
+  private func savePrivateCopy(from sourceURL: URL) throws -> String {
+    let hasSecurityScope = sourceURL.startAccessingSecurityScopedResource()
+    defer {
+      if hasSecurityScope { sourceURL.stopAccessingSecurityScopedResource() }
     }
-    guard let data = normalized.jpegData(compressionQuality: 0.84) else {
+
+    let resourceValues = try sourceURL.resourceValues(forKeys: [
+      .fileSizeKey,
+      .isRegularFileKey,
+      .isSymbolicLinkKey,
+    ])
+    guard resourceValues.isRegularFile == true,
+          resourceValues.isSymbolicLink != true,
+          let fileSize = resourceValues.fileSize,
+          fileSize > 0,
+          fileSize <= maximumInputBytes else {
       throw ProfilePhotoPickerError.unreadable
     }
 
-    let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    let directory = applicationSupport.appendingPathComponent("ContextProfilePhotos", isDirectory: true)
+    let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+    guard let imageSource = CGImageSourceCreateWithURL(sourceURL as CFURL, sourceOptions),
+          CGImageSourceGetCount(imageSource) == 1,
+          let detectedType = CGImageSourceGetType(imageSource) as String?,
+          acceptedImageTypes.contains(detectedType),
+          UTType(detectedType)?.conforms(to: .image) == true,
+          let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any],
+          let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.uint64Value,
+          let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.uint64Value,
+          width > 0,
+          height > 0,
+          width <= maximumSourceDimension,
+          height <= maximumSourceDimension,
+          width <= maximumPixelCount / height else {
+      throw ProfilePhotoPickerError.unreadable
+    }
+
+    let thumbnailOptions: [CFString: Any] = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceShouldCacheImmediately: true,
+      kCGImageSourceThumbnailMaxPixelSize: maximumThumbnailDimension,
+    ]
+    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
+      imageSource,
+      0,
+      thumbnailOptions as CFDictionary
+    ),
+      thumbnail.width > 0,
+      thumbnail.height > 0,
+      thumbnail.width <= maximumThumbnailDimension,
+      thumbnail.height <= maximumThumbnailDimension,
+      let data = UIImage(cgImage: thumbnail).jpegData(compressionQuality: 0.84),
+      !data.isEmpty,
+      data.count <= maximumOutputBytes else {
+      throw ProfilePhotoPickerError.unreadable
+    }
+
+    let directory = privatePhotoDirectory()
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try FileManager.default.setAttributes(
+      [.protectionKey: FileProtectionType.complete],
+      ofItemAtPath: directory.path
+    )
     let destination = directory.appendingPathComponent("\(UUID().uuidString).jpg")
     try data.write(to: destination, options: [.atomic, .completeFileProtection])
+    filesCreatedThisProcess.insert(destination.lastPathComponent)
     return destination.absoluteString
+  }
+
+  private func prunePrivateCopies(referencedUris: [String]) throws -> [String: Int] {
+    let directory = privatePhotoDirectory().standardizedFileURL
+    guard FileManager.default.fileExists(atPath: directory.path) else {
+      return ["removed": 0, "retained": 0]
+    }
+
+    let referencedNames = Set(referencedUris.compactMap { managedPhotoFilename(from: $0, in: directory) })
+    let candidates = try FileManager.default.contentsOfDirectory(
+      at: directory,
+      includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
+      options: [.skipsHiddenFiles]
+    )
+    var removed = 0
+    var retained = 0
+    for candidate in candidates where isManagedPhotoFilename(candidate.lastPathComponent) {
+      // Startup pruning targets files orphaned by a previous process. Never
+      // delete a staged save created in this process, even if the picker and
+      // the post-hydration cleanup are scheduled unusually close together.
+      if referencedNames.contains(candidate.lastPathComponent)
+        || filesCreatedThisProcess.contains(candidate.lastPathComponent) {
+        retained += 1
+        continue
+      }
+      let values = try candidate.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+      guard values.isRegularFile == true, values.isSymbolicLink != true else { continue }
+      try FileManager.default.removeItem(at: candidate)
+      removed += 1
+    }
+    return ["removed": removed, "retained": retained]
+  }
+
+  private func managedPhotoFilename(from uri: String, in directory: URL) -> String? {
+    guard let url = URL(string: uri), url.isFileURL else { return nil }
+    let standardized = url.standardizedFileURL
+    guard standardized.deletingLastPathComponent() == directory,
+          isManagedPhotoFilename(standardized.lastPathComponent) else { return nil }
+    return standardized.lastPathComponent
+  }
+
+  private func isManagedPhotoFilename(_ filename: String) -> Bool {
+    let url = URL(fileURLWithPath: filename)
+    return url.pathExtension.lowercased() == "jpg"
+      && UUID(uuidString: url.deletingPathExtension().lastPathComponent) != nil
+  }
+
+  private func privatePhotoDirectory() -> URL {
+    let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    return applicationSupport.appendingPathComponent("ContextProfilePhotos", isDirectory: true)
   }
 
   private func finish(with value: Any) {
@@ -149,6 +312,7 @@ final class ContextProfilePhotoPicker: NSObject, PHPickerViewControllerDelegate 
   }
 
   private func clearCallbacks() {
+    pickerEpoch = nil
     resolver = nil
     rejecter = nil
     presentedPicker = nil

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createInitialAppLockState,
   deviceAuthenticationErrorMessage,
+  isAppLockConfigurationReady,
   reduceAppLock,
   type AppLockState,
 } from "./app-lock-state";
@@ -15,6 +16,25 @@ function initializeLocked(): AppLockState {
 }
 
 describe("App Lock lifecycle", () => {
+  it("does not initialize an unlocked default before a protected hydration retry succeeds", () => {
+    let state = createInitialAppLockState();
+    let initialized = false;
+
+    if (isAppLockConfigurationReady(true, "Stored workspace could not be read.", true)) {
+      initialized = true;
+      state = reduceAppLock(state, { type: "INITIALIZE", enabled: false, appState: "active" });
+    }
+    expect(initialized).toBe(false);
+    expect(state.phase).toBe("locked");
+
+    if (isAppLockConfigurationReady(true, null, true) && !initialized) {
+      initialized = true;
+      state = reduceAppLock(state, { type: "INITIALIZE", enabled: true, appState: "active" });
+    }
+    expect(initialized).toBe(true);
+    expect(state).toMatchObject({ enabled: true, phase: "authenticating", attempt: 1 });
+  });
+
   it("ignores Face ID's inactive transition and accepts the successful result once", () => {
     let state = initializeLocked();
     expect(state).toMatchObject({ phase: "authenticating", attempt: 1 });
@@ -58,6 +78,39 @@ describe("App Lock lifecycle", () => {
     state = reduceAppLock(state, { type: "APP_STATE_CHANGED", appState: "active" });
     state = reduceAppLock(state, { type: "REQUEST_UNLOCK" });
     expect(state).toMatchObject({ phase: "authenticating", attempt: 2 });
+  });
+
+  it("reconciles a missed native background once without replaying it during Face ID", () => {
+    let state = initializeLocked();
+    state = reduceAppLock(state, { type: "AUTHENTICATION_SUCCEEDED", attempt: 1 });
+    state = reduceAppLock(state, { type: "APP_STATE_CHANGED", appState: "inactive" });
+    state = reduceAppLock(state, { type: "APP_STATE_CHANGED", appState: "active" });
+    expect(state.phase).toBe("unlocked");
+
+    state = reduceAppLock(state, { type: "NATIVE_BACKGROUND_REENTRY", epoch: 7 });
+    expect(state).toMatchObject({
+      phase: "authenticating",
+      attempt: 2,
+      lastNativeBackgroundEpoch: 7,
+      backgroundedDuringAuthentication: false,
+    });
+
+    state = reduceAppLock(state, { type: "NATIVE_BACKGROUND_REENTRY", epoch: 7 });
+    expect(state).toMatchObject({
+      phase: "authenticating",
+      attempt: 2,
+      backgroundedDuringAuthentication: false,
+    });
+    state = reduceAppLock(state, { type: "AUTHENTICATION_SUCCEEDED", attempt: 2 });
+    expect(state.phase).toBe("unlocked");
+  });
+
+  it("rejects an authentication result when a newer native background occurred during it", () => {
+    let state = initializeLocked();
+    state = reduceAppLock(state, { type: "NATIVE_BACKGROUND_REENTRY", epoch: 9 });
+    expect(state.backgroundedDuringAuthentication).toBe(true);
+    state = reduceAppLock(state, { type: "AUTHENTICATION_SUCCEEDED", attempt: 1 });
+    expect(state.phase).toBe("locked");
   });
 
   it("does not accept a stale success after authentication was backgrounded", () => {

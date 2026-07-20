@@ -38,7 +38,11 @@ import {
   requestDeviceContactsPermission,
   type AccessibleDeviceContacts,
 } from "@/lib/device-contacts";
-import { persistPrivateProfilePhoto } from "@/lib/profile-photo";
+import {
+  deletePrivateProfilePhotos,
+  isPrivateProfilePhotoUri,
+  persistPrivateProfilePhoto,
+} from "@/lib/profile-photo";
 import { useAppStore } from "@/store/app-store";
 
 function sourceId(contact: ImportContact): string {
@@ -60,8 +64,10 @@ export default function ContactsImportScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [error, setError] = useState<string>();
+  const [importSummary, setImportSummary] = useState<{ added: number; skipped: number }>();
   const [mappingSkipped, setMappingSkipped] = useState(0);
   const [truncated, setTruncated] = useState(false);
   const requestId = useRef(0);
@@ -181,9 +187,10 @@ export default function ContactsImportScreen() {
   }, [loadGrantedContacts]);
 
   const closeScreen = useCallback(() => {
+    if (importBusy) return;
     if (router.canDismiss()) router.dismiss();
     else router.replace("/people");
-  }, [router]);
+  }, [importBusy, router]);
 
   const onNativeSearchChange = useCallback((event: NativeSyntheticEvent<TextInputFocusEventData>) => {
     setQuery(event.nativeEvent.text);
@@ -201,7 +208,8 @@ export default function ContactsImportScreen() {
   const accessLabel = limitedAccess ? "Selected Contacts access" : "Contacts access";
 
   const headerOptions = useMemo(() => ({
-    headerLeft: () => <BarButton onPress={closeScreen}>Cancel</BarButton>,
+    gestureEnabled: !importBusy,
+    headerLeft: () => <BarButton disabled={importBusy} onPress={closeScreen}>Cancel</BarButton>,
     ...(limitedAccess && Platform.OS === "ios" ? {
       headerRight: () => (
         <BarButton accessibilityLabel="Choose more iPhone contacts" loading={busy} onPress={() => { void chooseMore(); }}>More</BarButton>
@@ -218,7 +226,7 @@ export default function ContactsImportScreen() {
         ref: searchBarRef,
       },
     } : {}),
-  }), [busy, candidates.length, chooseMore, clearSearch, closeScreen, granted, limitedAccess, loadingContacts, onNativeSearchChange]);
+  }), [busy, candidates.length, chooseMore, clearSearch, closeScreen, granted, importBusy, limitedAccess, loadingContacts, onNativeSearchChange]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const visibleCandidates = useMemo(() => {
@@ -255,19 +263,37 @@ export default function ContactsImportScreen() {
       return;
     }
     setBusy(true);
+    setImportBusy(true);
     setError(undefined);
+    const stagedPhotoUris: string[] = [];
     try {
-      const privateCopies = await Promise.all(selected.map(async (contact) => {
+      const privateCopies: ImportContact[] = [];
+      for (const contact of selected) {
         const photoUri = await persistPrivateProfilePhoto(contact.photoUri);
-        return photoUri ? { ...contact, photoUri } : contact;
-      }));
-      importContacts(privateCopies, null);
+        if (photoUri && photoUri !== contact.photoUri && isPrivateProfilePhotoUri(photoUri)) {
+          stagedPhotoUris.push(photoUri);
+        }
+        privateCopies.push(photoUri ? { ...contact, photoUri } : contact);
+      }
+      const result = await importContacts(privateCopies, null);
+      const referencedPhotoUris = new Set(useAppStore.getState().contacts.map((contact) => contact.photoUri));
+      const failedCleanup = await deletePrivateProfilePhotos(
+        stagedPhotoUris.filter((uri) => !referencedPhotoUris.has(uri)),
+      );
       setSelectedIds([]);
-      router.dismissTo("/people");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Context could not finish importing the selected people.");
+      setImportSummary({ added: result.added, skipped: result.skipped });
+      if (failedCleanup.length) {
+        setError("People were imported, but Context could not remove every unused photo copy. Restart the app to retry cleanup.");
+      }
+    } catch {
+      const failedCleanup = await deletePrivateProfilePhotos(stagedPhotoUris);
+      const message = "Context could not finish importing the selected people. No people were saved; try again.";
+      setError(failedCleanup.length
+        ? `${message} Context also could not remove every temporary photo copy; restart the app to retry cleanup.`
+        : message);
     } finally {
       setBusy(false);
+      setImportBusy(false);
     }
   };
 
@@ -315,7 +341,7 @@ export default function ContactsImportScreen() {
               title="Relationship basics"
             />
             <ListRow
-              subtitle="Available phone, email, social profiles, and profile thumbnail"
+              subtitle="Available phone, email, and social profiles"
               symbol={symbols.import}
               title="Contact details"
             />
@@ -384,8 +410,31 @@ export default function ContactsImportScreen() {
 
   const noSearchResults = granted && !loadingContacts && candidates.length && !visibleCandidates.length;
 
+  if (importSummary) {
+    const importedLabel = `${importSummary.added.toLocaleString()} ${importSummary.added === 1 ? "person" : "people"}`;
+    const skippedLabel = `${importSummary.skipped.toLocaleString()} already saved`;
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            headerLeft: () => <BarButton onPress={() => router.dismissTo("/people")}>Done</BarButton>,
+            headerRight: () => null,
+          }}
+        />
+        <Screen>
+          <EmptyState
+            action={<Button onPress={() => router.dismissTo("/people")} symbol={symbols.people}>View People</Button>}
+            body={`Imported ${importedLabel}. Skipped ${skippedLabel}.`}
+            symbol={symbols.checkCircle}
+            title="Import Complete"
+          />
+        </Screen>
+      </>
+    );
+  }
+
   return (
-    <Screen contentContainerStyle={styles.screen} scroll={false}>
+    <Screen contentContainerStyle={styles.screen} pointerEvents={importBusy ? "none" : "auto"} scroll={false}>
       <Stack.Screen options={headerOptions} />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -432,6 +481,7 @@ export default function ContactsImportScreen() {
               >
                 <ListRow
                   accessory={selected ? "checkmark" : "none"}
+                  selected={selected}
                   last={last}
                   leading={<Avatar name={item.displayName} photoUri={item.photoUri} size={42} />}
                   subtitle={metadata}

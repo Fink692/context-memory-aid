@@ -15,7 +15,7 @@ export interface ModelRosterImport extends ParsedRosterImport {
 
 export async function createModelRosterDrafts(documentText: string): Promise<ModelRosterImport> {
   if (Platform.OS !== "ios") {
-    throw new Error("Private PDF roster extraction requires the native iPhone app and its downloaded on-device model.");
+    throw new Error("PDF roster extraction requires the iPhone app and its downloaded Smart Assist model.");
   }
   const request = buildRosterImportPrompt(documentText);
   const result = await generateOnDevice(request.systemPrompt, request.prompt);

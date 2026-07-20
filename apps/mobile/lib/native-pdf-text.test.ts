@@ -59,13 +59,13 @@ describe("native PDF text boundary", () => {
     await expect(extractTextFromPDF("file:///private/roster.pdf")).rejects.toThrow(/inconsistent page counts/);
 
     runtime.nativeModules.ContextPDFTextExtractor = undefined;
-    await expect(extractTextFromPDF("file:///private/roster.pdf")).rejects.toThrow(/does not include private PDF import/);
+    await expect(extractTextFromPDF("file:///private/roster.pdf")).rejects.toThrow(/does not include PDF import/);
   });
 
   it("never offers native PDF extraction outside iOS", async () => {
     runtime.os = "web";
     expect(isPDFTextExtractionAvailable()).toBe(false);
-    await expect(extractTextFromPDF("file:///private/roster.pdf")).rejects.toThrow(/native iPhone app/);
+    await expect(extractTextFromPDF("file:///private/roster.pdf")).rejects.toThrow(/iPhone app/);
   });
 
   it("ships a local-only, bounded PDFKit module through its own plugin", () => {

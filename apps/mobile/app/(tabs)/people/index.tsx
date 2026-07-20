@@ -1,8 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
+  ActionSheetIOS,
+  Alert,
   FlatList,
   Platform,
   StyleSheet,
+  useWindowDimensions,
   View,
   type NativeSyntheticEvent,
   type TextInputFocusEventData,
@@ -16,24 +19,67 @@ import {
   EmptyState,
   IconButton,
   ListRow,
-  ListSection,
   Screen,
   TextField,
   symbols,
 } from "@/components/ui";
 import { colors, radius, spacing } from "@/constants/theme";
+import { shouldStackSharedRow } from "@/lib/accessibility-layout";
+import { sortOpenActions } from "@/lib/action-schedule";
+import { displayDate, relativeDate } from "@/lib/date";
 import { useAppStore } from "@/store/app-store";
 
 export default function PeopleScreen() {
   const router = useRouter();
   const contacts = useAppStore((state) => state.contacts);
-  const events = useAppStore((state) => state.events);
+  const actions = useAppStore((state) => state.actions);
   const [query, setQuery] = useState("");
   const searchBarRef = useRef<SearchBarCommands | null>(null);
+  const { fontScale, width } = useWindowDimensions();
+  const stackPeopleHeading = shouldStackSharedRow({ fontScale, width });
 
   const addPerson = useCallback(() => {
     router.push({ pathname: "/contact/new", params: { global: "1" } });
   }, [router]);
+
+  const scanContact = useCallback(() => {
+    router.push("/contact-receive");
+  }, [router]);
+
+  const importContacts = useCallback(() => {
+    router.push("/contacts-import");
+  }, [router]);
+
+  const importFile = useCallback(() => {
+    router.push("/import");
+  }, [router]);
+
+  const presentAddOptions = useCallback(() => {
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          cancelButtonIndex: 4,
+          options: ["Scan Contact QR", "Add Manually", "Import from Contacts", "Import from File", "Cancel"],
+          title: "Add a Person",
+        },
+        (index) => {
+          if (index === 0) scanContact();
+          if (index === 1) addPerson();
+          if (index === 2) importContacts();
+          if (index === 3) importFile();
+        },
+      );
+      return;
+    }
+
+    Alert.alert("Add a Person", undefined, [
+      { text: "Scan Contact QR", onPress: scanContact },
+      { text: "Add Manually", onPress: addPerson },
+      ...(Platform.OS === "web" ? [] : [{ text: "Import from Contacts", onPress: importContacts }]),
+      { text: "Import from File", onPress: importFile },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [addPerson, importContacts, importFile, scanContact]);
 
   const onNativeSearchChange = useCallback((event: NativeSyntheticEvent<TextInputFocusEventData>) => {
     setQuery(event.nativeEvent.text);
@@ -46,7 +92,11 @@ export default function PeopleScreen() {
 
   const screenOptions = useMemo(() => ({
     headerRight: () => (
-      <IconButton accessibilityLabel="Add person" onPress={addPerson} symbol={symbols.plus} />
+      <IconButton
+        accessibilityLabel={contacts.length ? "Add, scan, or import a person" : "Add person"}
+        onPress={contacts.length ? presentAddOptions : addPerson}
+        symbol={symbols.plus}
+      />
     ),
     ...(Platform.OS === "ios" && contacts.length ? {
       headerSearchBarOptions: {
@@ -59,17 +109,7 @@ export default function PeopleScreen() {
         ref: searchBarRef,
       },
     } : {}),
-  }), [addPerson, clearSearch, contacts.length, onNativeSearchChange]);
-
-  const membershipsByContact = useMemo(() => {
-    const memberships = new Map<string, typeof events>();
-    events.forEach((event) => {
-      event.attendeeContactIds.forEach((contactId) => {
-        memberships.set(contactId, [...(memberships.get(contactId) ?? []), event]);
-      });
-    });
-    return memberships;
-  }, [events]);
+  }), [addPerson, clearSearch, contacts.length, onNativeSearchChange, presentAddOptions]);
 
   const visibleContacts = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
@@ -91,28 +131,16 @@ export default function PeopleScreen() {
         || (left.company ?? "").localeCompare(right.company ?? ""));
   }, [contacts, query]);
 
+  const nextActionByContact = useMemo(() => {
+    const nextByContact = new Map<string, (typeof actions)[number]>();
+    sortOpenActions(actions).forEach((action) => {
+      if (!nextByContact.has(action.contactId)) nextByContact.set(action.contactId, action);
+    });
+    return nextByContact;
+  }, [actions]);
+
   const listHeader = (
     <View style={styles.listHeader}>
-      <ListSection>
-          {Platform.OS !== "web" ? (
-            <ListRow
-              accessory="disclosure"
-              onPress={() => router.push("/contacts-import")}
-              subtitle="Choose exactly who to copy from your phone"
-              symbol={symbols.import}
-              title="Import from Contacts"
-            />
-          ) : null}
-          <ListRow
-            accessory="disclosure"
-            last
-            onPress={() => router.push("/import")}
-            subtitle={Platform.OS === "ios" ? "Review people from a CSV or let on-device Gemma read a PDF" : "Review people from a CSV before saving"}
-            symbol={symbols.sparkles}
-            title={Platform.OS === "ios" ? "Import CSV or PDF" : "Import CSV"}
-          />
-      </ListSection>
-
       {contacts.length && Platform.OS !== "ios" ? (
         <TextField
           accessibilityLabel="Search all saved people"
@@ -125,7 +153,7 @@ export default function PeopleScreen() {
       ) : null}
 
       {contacts.length ? (
-        <View style={styles.peopleHeading}>
+        <View style={[styles.peopleHeading, stackPeopleHeading && styles.peopleHeadingStacked]}>
           <AppText emphasis="semibold" role="footnote" tone="secondary">Saved people</AppText>
           <AppText role="footnote" tone="secondary">{visibleContacts.length.toLocaleString()} shown</AppText>
         </View>
@@ -153,10 +181,13 @@ export default function PeopleScreen() {
                 : (
                     <View style={styles.emptyActions}>
                       {Platform.OS !== "web" ? (
-                        <Button onPress={() => router.push("/contacts-import")} symbol={symbols.import}>Import from Contacts</Button>
+                        <Button onPress={scanContact} symbol={symbols.scan}>Scan Contact QR</Button>
                       ) : null}
-                      <Button onPress={() => router.push("/import")} symbol={symbols.sparkles} variant="secondary">
-                        {Platform.OS === "ios" ? "Import CSV or PDF" : "Import CSV"}
+                      {Platform.OS !== "web" ? (
+                        <Button onPress={importContacts} symbol={symbols.import} variant="secondary">Import from Contacts</Button>
+                      ) : null}
+                      <Button onPress={importFile} symbol={symbols.import} variant="secondary">
+                        Import from File
                       </Button>
                       <Button
                         onPress={addPerson}
@@ -176,23 +207,38 @@ export default function PeopleScreen() {
           </View>
         )}
         renderItem={({ item: contact, index }) => {
-          const memberships = membershipsByContact.get(contact.id) ?? [];
           const profile = [contact.role, contact.company].filter(Boolean).join(" · ") || "Saved relationship";
-          const eventSummary = memberships.length
-            ? `Assigned to ${memberships.map((event) => event.name).join(", ")}`
-            : "Not assigned to an event";
           const memoryCount = contact.timeline.length;
+          const nextAction = nextActionByContact.get(contact.id);
+          const lastSpoke = relativeDate(contact.lastSpokeAt);
+          const relationshipSummary = nextAction
+            ? `Next: ${nextAction.title}`
+            : contact.recentUpdate
+              ? `Recent: ${contact.recentUpdate}`
+              : contact.lastDiscussed
+                ? `Last discussed: ${contact.lastDiscussed}`
+                : lastSpoke
+                  ? `Last spoke ${lastSpoke}`
+                  : contact.relationshipContext ?? profile;
+          const relationshipDetail = nextAction?.dueAt
+            ? `Due ${displayDate(nextAction.dueAt)}`
+            : nextAction
+              ? "Follow-up"
+              : undefined;
+          const memorySummary = memoryCount
+            ? `${memoryCount} ${memoryCount === 1 ? "memory" : "memories"}`
+            : "No memories";
           const last = index === visibleContacts.length - 1;
           return (
             <View style={[styles.personRowSurface, index === 0 && styles.groupFirst, last && styles.groupLast]}>
               <ListRow
-                accessibilityLabel={`${contact.displayName}. ${profile}. ${eventSummary}. ${memoryCount} ${memoryCount === 1 ? "memory" : "memories"}.`}
+                accessibilityLabel={`${contact.displayName}. ${profile}. ${relationshipSummary}. ${memorySummary}.`}
                 accessory="disclosure"
-                detail={`${memberships.length} ${memberships.length === 1 ? "event" : "events"}`}
+                {...(relationshipDetail ? { detail: relationshipDetail } : {})}
                 last={last}
                 leading={<Avatar name={contact.displayName} photoUri={contact.photoUri} size={44} />}
                 onPress={() => router.push({ pathname: "/contact/[id]", params: { id: contact.id } })}
-                subtitle={profile}
+                subtitle={relationshipSummary}
                 title={contact.displayName}
               />
             </View>
@@ -210,7 +256,8 @@ const styles = StyleSheet.create({
   list: { flex: 1, width: "100%", backgroundColor: colors.canvas },
   peopleList: { flexGrow: 1, paddingBottom: spacing.xxl },
   listHeader: { gap: spacing.lg, marginBottom: spacing.sm },
-  peopleHeading: { minHeight: 32, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, paddingHorizontal: spacing.lg },
+  peopleHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
+  peopleHeadingStacked: { flexDirection: "column", alignItems: "flex-start", justifyContent: "flex-start" },
   emptyContainer: { marginTop: spacing.lg },
   emptyActions: { width: "100%", gap: spacing.sm },
   personRowSurface: { backgroundColor: colors.surface },
