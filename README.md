@@ -18,6 +18,7 @@
 </p>
 
 <p align="center">
+  <a href="https://fink692.github.io/context-memory-aid/">Open the live demo</a> ·
   <a href="submission/context-pass-demo.mp4">Watch the 28-second demo</a> ·
   <a href="submission/context-pass-demo-script.md">Extended live-demo script</a> ·
   <a href="submission/context-pass-judge-guide.md">Judge guide</a> ·
@@ -42,6 +43,8 @@ The interactive demo models a complete AI Passport journey:
 Private notes are structurally unshareable in the demo policy. Any future write-back is review-required.
 
 ## Run the Context Pass demo
+
+The public interactive build is available at [fink692.github.io/context-memory-aid](https://fink692.github.io/context-memory-aid/).
 
 ```bash
 pnpm install --frozen-lockfile

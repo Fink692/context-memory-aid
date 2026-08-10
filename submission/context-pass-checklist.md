@@ -28,7 +28,7 @@
 - [x] Revoked/denied panel screenshot
 - [x] 28-second narrated cinematic demo video
 - [ ] YouTube or Vimeo upload URL
-- [ ] Public repository or deployed demo URL containing this branch
+- [x] Public repository and deployed demo URL containing this branch
 
 ## Devpost
 
@@ -36,7 +36,7 @@
 - [x] Add project thumbnail
 - [x] Add built-with tags
 - [x] Paste and proofread the project description
-- [ ] Add repository/demo link
+- [x] Add repository/demo link
 - [ ] Select Work and Build in the submission form if prompted
 - [ ] Submit by 4:00 p.m. CDT on August 12, ahead of the 5:45 p.m. deadline
 
@@ -46,4 +46,4 @@
 - [ ] Video audio is clear at normal laptop volume
 - [x] Every visible claim matches implemented or explicitly proposed behavior
 - [x] No real private data appears in screenshots or video; all scenario content is fictional
-- [ ] Submission opens in an incognito/private browser without authentication
+- [x] Submission opens in an unauthenticated browser without authentication

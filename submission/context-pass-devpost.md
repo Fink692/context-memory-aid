@@ -39,7 +39,7 @@ The person remains the controller throughout. A generated meeting memory may ret
 AI Passport is the permission and portability layer between Context and the meeting copilot. It carries:
 
 - **Context:** a user-confirmed relationship summary, open commitments, and meeting goals
-- **Permission:** which verified app may read which fields and for what purpose
+- **Permission:** which named app may read which fields and for what purpose
 - **Access:** a 30-minute grant that can be revoked before expiry
 - **Proof:** a receipt showing what the app actually read and when
 
