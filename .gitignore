@@ -1,0 +1,20 @@
+node_modules/
+.expo/
+dist/
+coverage/
+.env
+.env.local
+*.log
+apps/mobile/.env
+apps/api/.env
+apps/mobile/web-build/
+apps/mobile/.expo-shared/
+
+# Xcode and Swift Package Manager user state
+**/xcuserdata/
+**/.swiftpm/xcode/
+
+.vercel/
+.env*
+!.env.example
+!**/.env.example
