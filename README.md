@@ -2,10 +2,10 @@
   <img src="apps/mobile/assets/icon.png" width="112" alt="Context app icon">
 </p>
 
-<h1 align="center">Context</h1>
+<h1 align="center">Context Pass</h1>
 
 <p align="center">
-  A private, offline-first relationship memory for the people you already know.
+  A revocable, one-meeting slice of your memory for AI copilots.
 </p>
 
 <p align="center">
@@ -18,12 +18,60 @@
 </p>
 
 <p align="center">
-  <a href="submission/context-teaser.mp4">Watch the teaser</a> ·
-  <a href="submission/demo-script.md">Read the demo</a> ·
-  <a href="submission/project-story.md">Project story</a> ·
+  <a href="submission/context-pass-demo.mp4">Watch the 28-second demo</a> ·
+  <a href="submission/context-pass-demo-script.md">Extended live-demo script</a> ·
+  <a href="submission/context-pass-judge-guide.md">Judge guide</a> ·
+  <a href="submission/context-pass-devpost.md">Devpost draft</a> ·
+  <a href="submission/context-pass-risk-register.md">Risk register</a> ·
   <a href="PRIVACY.md">Privacy</a> ·
   <a href="SECURITY.md">Security</a>
 </p>
+
+![Context Pass meeting-permission demo](submission/screenshots/context-pass-hero.jpg)
+
+Context Pass is the Work / Build entry for the AI Passport Ideathon. It demonstrates how a student can carry just the relationship context needed for one academic or professional conversation without exposing an inbox, contact book, or private notebook.
+
+The interactive demo models a complete AI Passport journey:
+
+1. A meeting copilot requests context for a named purpose.
+2. The user previews and selects exact fields.
+3. AI Passport issues a recipient-bound, 30-minute pass.
+4. The copilot produces a briefing only from approved fields.
+5. An access receipt shows what was read; revocation makes a retry fail.
+
+Private notes are structurally unshareable in the demo policy. Any future write-back is review-required.
+
+## Run the Context Pass demo
+
+```bash
+pnpm install --frozen-lockfile
+pnpm run dev:mobile
+```
+
+Press `w` in Expo, or open the displayed local web URL. The root route opens the five-stage Context Pass experience directly.
+
+The submission folder also contains a verified 1080p [28-second narrated demo](submission/context-pass-demo.mp4). Its editable Remotion timeline, beat sheet, generated-audio script, and source record live in [`video/`](video/README.md).
+
+Verification:
+
+```bash
+pnpm run verify
+pnpm --filter @context/mobile run export:web -- --clear
+```
+
+## What is new for the ideathon
+
+- Five-stage AI Passport request, approval, result, receipt, and revocation experience
+- Deterministic permission policy with recipient, scope, purpose, expiry, and write-back constraints
+- Denied reads for revoked, expired, wrong-recipient, and out-of-scope requests
+- Judge-facing privacy, control, and passport-role explanations
+- New policy tests and responsive web presentation
+
+The underlying offline relationship-memory application predates the ideathon. Context Pass reuses that open-source foundation and clearly separates the new passport flow from the existing product. The prototype models a proposed AI Passport integration; it does not claim to call a production Egoist API.
+
+---
+
+## Context foundation
 
 Context helps you remember where you met someone, what you last discussed, what matters to them, and how to continue the relationship naturally. Every lookup begins with a person the user chose to save. Events can organize people, but they are never required.
 

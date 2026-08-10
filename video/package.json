@@ -1,0 +1,24 @@
+{
+  "name": "context-pass-video",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "render": "remotion render src/index.ts ContextPassVideo ../submission/context-pass-demo.mp4 --codec h264 --crf 18",
+    "still": "remotion still src/index.ts ContextPassVideo ../submission/context-pass-video-poster.jpg --frame 180 --image-format jpeg",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@remotion/cli": "^4.0.507",
+    "@remotion/renderer": "^4.0.507",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "ffmpeg-static": "^5.3.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "^4.0.507"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
