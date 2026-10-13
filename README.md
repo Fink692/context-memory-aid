@@ -1,56 +1,12 @@
-<p align="center">
-  <img src="apps/mobile/assets/icon.png" width="112" alt="Context app icon">
-</p>
+# Context
 
-<h1 align="center">Context</h1>
+An offline relationship-memory app for the people you already know. Save where you met, what you discussed, and the details you want to remember.
 
-<p align="center">
-  A private, offline-first relationship memory for the people you already know.
-</p>
+[Product tour](#product-tour) · [Privacy](PRIVACY.md) · [Security](SECURITY.md) · [Deployment](docs/DEPLOYMENT.md)
 
-<p align="center">
-  <a href="https://github.com/Fink692/context-memory-aid/actions/workflows/verify.yml"><img src="https://github.com/Fink692/context-memory-aid/actions/workflows/verify.yml/badge.svg" alt="Verify Context"></a>
-  <img src="https://img.shields.io/badge/Expo-57-000020?logo=expo" alt="Expo 57">
-  <img src="https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=111111" alt="React Native 0.86">
-  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="Strict TypeScript">
-  <img src="https://img.shields.io/badge/Built_with-GPT--5.6-412991?logo=openai&logoColor=white" alt="Built with GPT-5.6">
-  <img src="https://img.shields.io/badge/core_runtime-$0-166534" alt="Zero cost core runtime">
-</p>
+## Development
 
-<p align="center">
-  <a href="submission/context-teaser.mp4">Watch the teaser</a> ·
-  <a href="submission/demo-script.md">Read the demo</a> ·
-  <a href="submission/project-story.md">Project story</a> ·
-  <a href="PRIVACY.md">Privacy</a> ·
-  <a href="SECURITY.md">Security</a>
-</p>
-
-Context helps you remember where you met someone, what you last discussed, what matters to them, and how to continue the relationship naturally. Every lookup begins with a person the user chose to save. Events can organize people, but they are never required.
-
-> Context is not internet identity search and it is not a sales CRM. It is a memory aid designed to help people show up better for relationships they already have.
-
-## Why I built it
-
-The idea came from watching my mom meet people. After a conversation, she often opens the Notes app and records the person's name, where they met, and details she wants to remember.
-
-It is a thoughtful habit, but the notes quickly become cluttered. Names are formatted inconsistently, details are spread across different entries, and useful context gets buried among grocery lists and reminders. When she meets someone again, the information may be on her phone, but it is hard to find at the moment she needs it.
-
-Context gives those memories a dedicated home. It keeps the speed of writing a note while organizing every detail around the person it belongs to.
-
-## How I used GPT-5.6
-
-I built Context on my own, with GPT-5.6 through Codex as an AI engineering collaborator. I set the product direction, chose the privacy boundaries, made the final design decisions, and reviewed every change. GPT-5.6 helped me move from the original idea to a tested, cross-platform product by assisting with:
-
-- Exploring product flows and turning the Notes app problem into a focused relationship-memory experience
-- Designing the TypeScript monorepo, shared data contracts, native iOS boundaries, and offline-first architecture
-- Drafting and refactoring React Native, Swift, Objective-C, AppKit, test, and automation code
-- Reasoning through contact permissions, local storage, review-before-save flows, backups, and privacy safeguards
-- Generating edge-case tests and investigating timezone, native build, and Linux CI failures
-- Polishing the README, project story, release documentation, and GitHub presentation
-
-I treated GPT-5.6 output as a starting point rather than an automatic decision. I inspected the code, tested the complete user flow, built the native targets, and used GitHub Actions to verify the final result on Linux and macOS.
-
-GPT-5.6 was part of the development process, not a runtime dependency. The released mobile app does not send relationship data to GPT-5.6 or require an OpenAI account or API key.
+I built Context with Codex as an AI engineering collaborator. I set the product direction, chose the privacy boundaries, reviewed changes, and tested the native and cross-platform flows. AI coding tools are part of development; the app does not require an OpenAI account or send relationship data to them at runtime.
 
 ## Product tour
 
@@ -253,6 +209,3 @@ GitHub Actions repeats the clean install, type checks, full test suite, Expo dia
 - [Two-minute demo](submission/demo-script.md)
 - [Submission checklist](submission/submission-checklist.md)
 
-## Product principle
-
-Context is a memory prosthetic for relationships. The goal is not to know more people. It is to show up better for the people you already know.
