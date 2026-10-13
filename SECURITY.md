@@ -78,4 +78,4 @@ Development and distribution tools may access npm, Expo, or an app store to inst
 
 ## Dependency audit
 
-`npm audit --omit=dev` currently reports moderate advisories in the Expo build/configuration toolchain. There are no high or critical findings. The automated force-fix would downgrade Expo across major SDK versions and is not safe to apply; recheck when Expo publishes compatible patched transitive dependencies.
+The 12 October 2026 dependency refresh removed the reported critical advisory and updated compatible dependencies within Expo SDK 57. High advisories remain in transitive build-tool dependencies, including `braces`, `node-forge`, and the legacy `image-size` API. The default audit gate remains enabled and fails while these advisories are present. See [the dependency status record](docs/DEPENDENCY_STATUS.md) for current evidence and unresolved upgrades.
