@@ -46,10 +46,10 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@types/node": "^22.19.15",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.2.14",
-    "typescript": "~6.0.3",
-    "vitest": "^4.1.10"
+    "typescript": "~7.0.2",
+    "vitest": "^5.0.3"
   },
   "expo": {
     "doctor": {
